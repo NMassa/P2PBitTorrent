@@ -17,8 +17,7 @@ class Tracker_Server(threading.Thread):
         Peer: non utilizzata
     """
 
-    def __init__(self, (client, address), dbConnect, output_lock, print_trigger, my_ipv4, my_ipv6, my_port, ttl,
-                 is_supernode):
+    def __init__(self, (client, address), dbConnect, output_lock, print_trigger, my_ipv4, my_ipv6, my_port):
         # QtCore.QThread.__init__(self, parent=None)
         threading.Thread.__init__(self)
         self.client = client
@@ -30,8 +29,6 @@ class Tracker_Server(threading.Thread):
         self.my_ipv4 = my_ipv4
         self.my_ipv6 = my_ipv6
         self.my_port = my_port
-        self.ttl = ttl
-        self.is_supernode = is_supernode
 
     def run(self):
         conn = self.client
