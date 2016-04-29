@@ -19,12 +19,105 @@ class Main(QtCore.QThread):
         super(Main, self).__init__(parent)
 
     def run(self):
+        tracker = False
+
         out_lck = threading.Lock()
         db = MongoConnection(out_lck)
-        client = Client(config.my_ipv4, config.my_ipv6, int(config.my_port), None, None, None, db, out_lck, self.print_trigger)
-        client.share()
 
-        print "main"
+        output(out_lck, "Are you a tracker?")
+        output(out_lck, "1: YES")
+        output(out_lck, "2: NO")
+
+        int_choice = None
+        while int_choice is None:
+            try:
+                option = raw_input()  # Input da tastiera
+            except SyntaxError:
+                option = None
+
+            if option is None:
+                output(out_lck, "Please select an option")
+            else:
+                try:
+                    int_choice = int(option)
+                except ValueError:
+                    output(out_lck, "A choice is required")
+
+        if int_choice == 1:
+            output(out_lck, "YOU ARE A TRACKER")
+            tracker = True
+        else:
+            output(out_lck, "YOU ARE A PEER!")
+
+        # Avvio il server in ascolto sulle porte 3000 e 6000
+        server = multithread_server.Server(tracker)
+        server.print_trigger.connect(mainwindow.print_on_main_panel)
+        server.start()
+
+        client = Client(db, out_lck, self.print_trigger)
+
+        while client.session_id is None:
+            # print_menu_top(out_lck)
+            output(out_lck, "Select one of the following options ('e' to exit): ")
+            output(out_lck, "1: Log in                                          ")
+
+            int_option = None
+            try:
+                option = raw_input()
+            except SyntaxError:
+                option = None
+
+            if option is None:
+                output(out_lck, "Please select an option")
+            elif option == 'e':
+                output(out_lck, "Bye bye")
+                server.stop()
+                sys.exit()  # Interrompo l'esecuzione
+            else:
+                try:
+                    int_option = int(option)
+                except ValueError:
+                    output(out_lck, "A number is required")
+                else:
+                    if int_option == 1:
+
+                        client.login()
+
+                        while client.session_id is not None:
+                            # print_menu_top(out_lck)
+                            output(out_lck, "1: Add file                                        ")
+                            output(out_lck, "2: Search file                                     ")
+                            output(out_lck, "3: Log out                                         ")
+                            # print_menu_bottom(out_lck)
+
+                            int_option = None
+                            try:
+                                option = raw_input()
+                            except SyntaxError:
+                                option = None
+
+                            if option is None:
+                                output(out_lck, "Please select an option")
+                            else:
+                                try:
+                                    int_option = int(option)
+                                except ValueError:
+                                    output(out_lck, "A number is required")
+                                else:
+                                    if int_option == 1:
+                                        # scelgo un file dalla cartella e lo aggiungo alla directory
+                                        client.share()
+                                    elif int_option == 2:
+                                        # creo una query e la invio agli altri supernodi
+                                        client.search_file()
+                                    elif int_option == 3:
+                                        client.logout()
+                                    else:
+                                        output(out_lck, "Option " + str(int_option) + " not available")
+
+                    else:
+                        output(out_lck, "Option " + str(int_option) + " not available")
+
 
 
 if __name__ == "__main__":
