@@ -50,10 +50,25 @@ class Tracker_Server(threading.Thread):
 
                 print "logout"
 
-            elif cmd[:4] == 'ADDR':
+            elif cmd[:4] == 'AADR':
                 #IPP2P:RND <> IPT:3000
                 #> “ADDR”[4B].SessionID[16B].LenFile[10B].LenPart[6B].Filename[100B].Filemd5_i[32B]
                 #< “AADR”[4B].  # part[8B]
+
+                sessId = cmd[4:20]
+                len_file = cmd[20:30]
+                len_part = cmd[30:36]
+                num_part = round(int(len_file)/int(len_part))
+                response = cmd[:4] + num_part
+
+                self.print_trigger.emit(
+                    "<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + len_file,+" "+len_part ,"10")
+
+                self.dbConnect.share_file(response)
+                self.print_trigger.emit("File succesfully shared by " + str(self.address[0]), "12")
+
+                # Spazio
+                self.print_trigger.emit("", "10")
 
                 print "add file"
 

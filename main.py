@@ -19,6 +19,11 @@ class Main(QtCore.QThread):
         super(Main, self).__init__(parent)
 
     def run(self):
+        out_lck = threading.Lock()
+        db = MongoConnection(out_lck)
+        client = Client(config.my_ipv4, config.my_ipv6, int(config.my_port), None, None, None, db, out_lck, self.print_trigger)
+        client.share()
+
         print "main"
 
 

@@ -14,6 +14,15 @@ def hashfile(file, hasher, blocksize=65536):
     while len(buf) > 0:
         hasher.update(buf)
         buf = file.read(blocksize)
+
+    return hasher.hexdigest()
+
+def hashfile_ip(file, hasher, bytes_ip):
+    buf = file.read(65536)+bytes_ip
+    while len(buf) > 0:
+        hasher.update(buf)
+        buf = file.read(65536)
+
     return hasher.hexdigest()
 
 
