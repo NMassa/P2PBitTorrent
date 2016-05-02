@@ -140,13 +140,13 @@ class Client(object):
         file = {
             "name": "prova.avi",
             "md5": "DYENCNYDABKASDKJCBAS8441132A57ST",
-            "len_file": "1073741824", #1GB
-            "len_part": "1048576" #256KB
+            "len_file": "1073741824",  # 1GB
+            "len_part": "1048576"  # 256KB
         }
-        # #part = 4096
-        # #part8 = supint[#part/8] = 512
 
-        print "update part list"
+        n_parts = int(file['len_file']) / int(file['len_part'])  # 1024
+
+        n_parts8 = int(round(n_parts/8))  # 128
 
         output(self.out_lck, "Fetching parts informations about file " + file['name'])
         msg = "FCHU" + self.session_id + file['md5']
@@ -167,6 +167,7 @@ class Client(object):
 
         except socket.error, msg:
             self.print_trigger.emit('Socket Error: ' + str(msg), '01')
+
         except Exception as e:
             self.print_trigger.emit('Error: ' + e.message, '01')
 
@@ -174,8 +175,93 @@ class Client(object):
             output(self.out_lck, 'No response from tracker. Fetch failed')
         elif response_message[0:4] == 'AFCH':
 
+            n_hitpeers = int(self.tracker.recv(3))
+
+            if n_hitpeers is not None and n_hitpeers > 0:
+
+                hitpeers = []
+
+                for i in range(0, n_hitpeers):
+                    hitpeer_ipv4 = self.tracker.recv(16).replace("|", "")
+                    hitpeer_ipv6 = self.tracker.recv(39)
+                    hitpeer_port = self.tracker.recv(5)
+                    hitpeer_partlist = self.tracker.recv(n_parts8)
+
+                    hitpeers.append({
+                        "ipv4": hitpeer_ipv4,
+                        "ipv6": hitpeer_ipv6,
+                        "port": hitpeer_port,
+                        "part_list": hitpeer_partlist
+                    })
+
+                if hitpeers:
+                    # cerco la tabella delle parti di cui fare il download se non esiste la creo
+
+                    download = self.dbConnect.download.find_one({"md5": file['md5']})
+                    if download:
+                        parts = download['parts']
+                    else:
+                        parts = []
+                        self.dbConnect.downlaod.inser_one({
+                            "name": file['name'],
+                            "md5": file['md5'],
+                            "len_file": file['len_file'],  # 1GB
+                            "len_part": file['len_part'],  # 256KB
+                            "parts": parts
+                        })
+
+                    # scorro i risultati della FETCH ed aggiorno la lista delle parti in base alla disponibilità
+                    for hp in hitpeers:
+                        part_count = 1
+                        for c in hp['part_list']:
+                            bits = bin(ord(c)).zfill(8)[2:]  # Es: 0b01001101
+                            for bit in bits:
+                                if bit == 1:  # se la parte è disponibile
+                                    found = False
+
+                                    # cerco la parte nella lista, se esiste aggiungo il peer altrimenti la creo
+                                    for part in parts:
+                                        if part['n'] == part_count:
+                                            found = True
+
+                                            peers = part['peers']
+                                            peers.append({
+                                                "ipv4": hp['ipv4'],
+                                                "ipv6": hp['ipv6'],
+                                                "port": hp['port']
+                                            })
+
+                                            part['occ'] = int(part['occ']) + 1
+                                            part['peers'] = peers
+
+                                    if not found:
+                                        parts.append({
+                                            "n": part_count,
+                                            "occ": 1,
+                                            "peers": [].append({
+                                                "ipv4": hp['ipv4'],
+                                                "ipv6": hp['ipv6'],
+                                                "port": hp['port']
+                                            })
+                                        })
+
+                            part_count += 1
 
 
+                    # ordino la lista delle parti in base alle occorrenze in modo crescente
+                    sorted_parts = sorted(parts, key=lambda k: k['occ'])
+
+                    # aggiorno la lista già ordinata
+                    self.dbConnect.downlaod.update_one({"md5": file['md5']},
+                                                       {
+                                                            "$set": {"parts": parts}
+                                                       })
+
+
+
+            else:
+                output(self.out_lck, 'No peers found.\n')
+                self.print_trigger.emit('No peers found.\n', '01')
 
         else:
             output(self.out_lck, 'Error: unknown response from tracker.\n')
