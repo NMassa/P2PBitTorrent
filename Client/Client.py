@@ -254,7 +254,7 @@ class Client(object):
                     # aggiorno la lista già ordinata
                     self.dbConnect.downlaod.update_one({"md5": file['md5']},
                                                        {
-                                                            "$set": {"parts": parts}
+                                                            "$set": {"parts": sorted_parts}
                                                        })
 
 
