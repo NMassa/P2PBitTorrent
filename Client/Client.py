@@ -7,27 +7,14 @@ from helpers.helpers import *
 
 
 class Client(object):
-    """
-    Rappresenta il peer corrente
 
-    Attributes:
-        session_id: identificativo della sessione corrente fornito dalla directory
-        my_ipv4: indirizzo ipv4 del peer corrente
-        my_ipv6: indirizzo ipv6 del peer corrente
-        my_port: porta del peer corrente
-        dir_ipv4: indirizzo ipv4 della directory
-        dir_ipv6: indirizzo ipv6 della directory
-        dir_port: porta della directory
-        files_list:
-        directory: connessione alla directory
-    """
     session_id = None
     files_list = []
-    directory = None
     #TODO cambiare sul mac con ./fileCondivisi
     path="./fileCondivisi"
+    tracker = None
 
-    def __init__(self, my_ipv4, my_ipv6, my_port, dir_ipv4, dir_ipv6, dir_port, database, out_lck, print_trigger):
+    def __init__(self, my_ipv4, my_ipv6, my_port, track_ipv4, track_ipv6, track_port, database, out_lck, print_trigger):
         """
             Costruttore della classe Peer
         """
@@ -35,9 +22,9 @@ class Client(object):
         self.my_ipv4 = my_ipv4
         self.my_ipv6 = my_ipv6
         self.my_port = my_port
-        self.dir_ipv4 = dir_ipv4
-        self.dir_ipv6 = dir_ipv6
-        self.dir_port = dir_port
+        self.track_ipv4 = track_ipv4
+        self.track_ipv6 = track_ipv6
+        self.track_port = track_port
         self.dbConnect = database
         self.out_lck = out_lck
         self.print_trigger = print_trigger
@@ -68,9 +55,9 @@ class Client(object):
         print "logout"
 
     def share(self):
-        """
-            Aggiunge un file alla directory rendendolo disponibile agli altri peer per il download
-        """
+        # IPP2P:RND <> IPT:3000
+        # > “ADDR”[4B].SessionID[16B].LenFile[10B].LenPart[6B].Filename[100B].Filemd5_i[32B]
+        # < “AADR”[4B].  # part[8B]
 
         found = False
         while not found:
@@ -118,9 +105,9 @@ class Client(object):
                             try:
                                 self.check_connection()
 
-                                self.directory.send(msg)
+                                self.tracker.send(msg)
                                 self.print_trigger.emit(
-                                    '=> ' + str(self.directory.getpeername()[0]) + '  ' + msg[0:4] + '  ' + self.session_id +
+                                    '=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' + self.session_id +
                                     '  '+ str(LenFile).strip("") + '  '+ str(LenPart).strip("")+'  ' + str(FileName).strip("")+
                                     '  '+ str(Filemd5_i).strip(""), "00")
 
@@ -145,14 +132,56 @@ class Client(object):
 
         print "search"
 
-    def update_part_list(self, md5):
+    def fetch(self, file):
         # IPP2P:RND <> IPT:3000
         # > “FCHU”[4B].SessionID[16B].Filemd5_i[32B]
-        # < “AFCH”[4B].  # hitpeer[3B].{IPP2P_i[55B].PP2P_i[5B].PartList_i[#part8]}(i = 1..# hitpeer)
+        # < “AFCH”[4B].#hitpeer[3B].{IPP2P_i[55B].PP2P_i[5B].PartList_i[#part8]}(i = 1..# hitpeer)
+
+        file = {
+            "name": "prova.avi",
+            "md5": "DYENCNYDABKASDKJCBAS8441132A57ST",
+            "len_file": "1073741824", #1GB
+            "len_part": "1048576" #256KB
+        }
+        # #part = 4096
+        # #part8 = supint[#part/8] = 512
 
         print "update part list"
 
-    def downlaod(self, session_id, host_ipv4, host_ipv6, host_port, file):
+        output(self.out_lck, "Fetching parts informations about file " + file['name'])
+        msg = "FCHU" + self.session_id + file['md5']
+
+        response_message = None
+        try:
+            self.check_connection()
+
+            self.tracker.sendall(msg)
+            self.print_trigger.emit('=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' +
+                                    self.session_id + '  ' + file['md5'], "00")
+
+            # Spazio
+            self.print_trigger.emit("", "00")
+
+            response_message = self.tracker.recv(4)
+            self.print_trigger.emit('<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4], '02')
+
+        except socket.error, msg:
+            self.print_trigger.emit('Socket Error: ' + str(msg), '01')
+        except Exception as e:
+            self.print_trigger.emit('Error: ' + e.message, '01')
+
+        if response_message is None:
+            output(self.out_lck, 'No response from tracker. Fetch failed')
+        elif response_message[0:4] == 'AFCH':
+
+
+
+
+        else:
+            output(self.out_lck, 'Error: unknown response from tracker.\n')
+            self.print_trigger.emit('Error: unknown response from tracker.', '01')
+
+    def downlaod(self, host_ipv4, host_ipv6, host_port, filemd5, part_n):
         # IPP2P:RND <> IPP2P:PP2P
         # > “RETP”[4B].Filemd5_i[32B].PartNum[8B]
         # < “AREP”[4B].  # chunk[6B].{Lenchunk_i[5B].data[LB]}(i=1..#chunk)
@@ -170,11 +199,11 @@ class Client(object):
         Helper methods
     '''
     def check_connection(self):
-        if not self.alive(self.directory):
-            c = connection.Connection(self.dir_ipv4, self.dir_ipv6, self.dir_port,
-                                      self.print_trigger, "0")  # Creazione connessione con la directory
+        if not self.alive(self.tracker):
+            c = connection.Connection(self.track_ipv4, self.track_ipv6, self.track_port,
+                                      self.print_trigger, "0")  # Creazione connessione con il tracker
             c.connect()
-            self.directory = c.socket
+            self.tracker = c.socket
 
     def alive(self, socket):
         try:
