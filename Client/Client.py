@@ -45,6 +45,47 @@ class Client(object):
 
         print "login"
 
+        # “LOGI”[4B].IPP2P[55B].PP2P[5B]
+        output(self.out_lck, "Logging in...")
+        msg = 'LOGI' + self.track_ipv4 + '|' + self.track_ipv6 + str(self.track_port).zfill(5)
+
+        response_message = None
+        try:
+            self.tracker = None
+            c = connection.Connection(self.track_ipv4, self.track_ipv6, self.track_port, self.print_trigger,
+                                      "0")  # Creazione connessione con la directory
+            c.connect()
+            self.tracker = c.socket
+
+            self.tracker.send(msg)  # Richiesta di login
+            self.print_trigger.emit(
+                '=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' + self.my_ipv4 + '  ' +
+                self.my_ipv6 + '  ' + str(self.my_port).zfill(5), "00")
+
+            # Spazio
+            self.print_trigger.emit("", "00")
+
+            response_message = self.tracker.recv(20)  # Risposta della directory, deve contenere ALGI e il session id
+            self.print_trigger.emit(
+                '<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4] + '  ' + response_message[4:20],
+                '02')
+
+        except socket.error, msg:
+            self.print_trigger.emit('Socket Error: ' + str(msg), '01')
+        except Exception as e:
+            self.print_trigger.emit('Error: ' + e.message, '01')
+
+        if response_message is None:
+            output(self.out_lck, 'No response from tracker. Login failed')
+        else:
+            self.session_id = response_message[4:20]
+            if self.session_id == '0000000000000000' or self.session_id == '':
+                output(self.out_lck, 'Troubles with the login procedure.\nPlease, try again.')
+            else:
+                output(self.out_lck, 'Session ID assigned by the directory: ' + self.session_id)
+                output(self.out_lck, 'Login completed')
+                self.print_trigger.emit('Login completed', '02')
+
 
     def logout(self):
         #IPP2P:RND <> IPT:3000
@@ -53,6 +94,49 @@ class Client(object):
         #2 < “ALOG”[4B].  # partown[10B]
 
         print "logout"
+
+        output(self.out_lck, 'Logging out...')
+        msg = 'LOGO' + self.session_id
+
+        response_message = None
+        try:
+            self.check_connection()
+
+            self.tracker.send(msg)  # Richeista di logout
+            self.print_trigger.emit('=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' + self.session_id,
+                                    "00")
+
+            # Spazio
+            self.print_trigger.emit("", "00")
+
+            response_message = self.tracker.recv(
+                7)  # Risposta della directory, deve contenere ALGO e il numero di file che erano stati condivisi
+            self.print_trigger.emit(
+                '<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4] + '  ' + response_message[4:7],
+                '02')
+
+        except socket.error, msg:
+            self.print_trigger.emit('Socket Error: ' + str(msg), '01')
+        except Exception as e:
+            self.print_trigger.emit('Error: ' + e.message, '01')
+
+        if response_message is None:
+            output(self.out_lck, 'No response from tracker. Login failed')
+        elif response_message[0:4] == 'ALOG':
+            self.session_id = None
+
+            self.tracker.close()  # Chiusura della connessione
+            output(self.out_lck, 'Logout completed')
+            self.print_trigger.emit('Logout completed', '02')
+        elif response_message[0:4] == "NLOG":
+            self.session_id = None
+
+            self.tracker.close()  # Chiusura della connessione
+            output(self.out_lck, 'Logout completed')
+            self.print_trigger.emit('Logout completed', '02')
+        else:
+            output(self.out_lck, 'Error: unknown response from tracker.\n')
+            self.print_trigger.emit('Error: unknown response from tracker.', '01')
 
     def share(self):
         # IPP2P:RND <> IPT:3000
@@ -131,6 +215,46 @@ class Client(object):
         #< “ALOO”[4B].  # idmd5[3B].{Filemd5_i[32B].Filename_i[100B].LenFile[10B].LenPart[6B]}(i = 1..  # idmd5)
 
         print "search"
+
+        output(self.out_lck, 'Insert search term:')
+        try:
+            ricerca = raw_input()  # Inserimento del parametro di ricerca
+        except SyntaxError:
+            ricerca = None
+        if ricerca is None:
+            output(self.out_lck, 'Please select an option')
+        else:
+            output(self.out_lck, "Searching files that match: " + ricerca)
+
+            msg = 'LOOK' + self.session_id + ricerca.ljust(20)
+
+            response_message = None
+            try:
+                self.check_connection()
+
+                self.tracker.send(msg)
+                self.print_trigger.emit(
+                    '=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' + self.session_id +
+                    '  ' + ricerca.ljust(20), "00")
+
+                # Spazio
+                self.print_trigger.emit("", "00")
+
+                response_message = self.tracker.recv(4)
+
+                self.print_trigger.emit(
+                    '<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4],
+                    '02')
+            except socket.error, msg:
+                # output(self.out_lck, 'Socket Error: ' + str(msg))
+                self.print_trigger.emit('Socket Error: ' + str(msg), '01')
+            except Exception as e:
+                # output(self.out_lck, 'Error: ' + e.message)
+                self.print_trigger.emit('Error: ' + e.message, '01')
+
+                # TODO: ricerca..
+
+
 
     def fetch(self, file):
         # IPP2P:RND <> IPT:3000
