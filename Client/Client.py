@@ -36,9 +36,8 @@ class Client(object):
                 new_file = SharedFile(file, file_md5)
                 self.files_list.append(new_file)
 
-
-
     def login(self):
+
         #IPP2P:RND <> IPT:3000
         #> “LOGI”[4B].IPP2P[55B].PP2P[5B]
         #< “ALGI”[4B].SessionID[16B]
@@ -85,7 +84,6 @@ class Client(object):
                 output(self.out_lck, 'Session ID assigned by the directory: ' + self.session_id)
                 output(self.out_lck, 'Login completed')
                 self.print_trigger.emit('Login completed', '02')
-
 
     def logout(self):
         #IPP2P:RND <> IPT:3000
@@ -208,7 +206,6 @@ class Client(object):
                     if not found:
                         output(self.out_lck, 'Option not available')
 
-
     def look(self):
         #IPP2P:RND <> IPT:3000
         #> “LOOK”[4B].SessionID[16B].Ricerca[20B]
@@ -253,8 +250,6 @@ class Client(object):
                 self.print_trigger.emit('Error: ' + e.message, '01')
 
                 # TODO: ricerca..
-
-
 
     def fetch(self, file):
         # IPP2P:RND <> IPT:3000

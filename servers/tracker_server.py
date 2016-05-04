@@ -35,11 +35,30 @@ class Tracker_Server(threading.Thread):
         cmd = conn.recv(self.size)
 
         while len(cmd) > 0:
+
             if cmd[:4] == 'LOGI':
                 # IPP2P:RND <> IPT:3000
                 # > “LOGI”[4B].IPP2P[55B].PP2P[5B]
+                # > LOGI172.030.008.001|fc00:0000:0000:0000:0000:0000:0008:000106000
                 # < “ALGI”[4B].SessionID[16B]
-
+                ipv4 = cmd[4:19]
+                ipv6 = cmd[20:59]
+                port = cmd[59:64]
+                self.print_trigger.emit(
+                    "<= " + str(self.address[0]) + "  " + cmd[:4] + '  ' + ipv4 + '  ' + ipv6 + '  ' + str(port), "10")
+                # Spazio
+                self.print_trigger.emit("", "10")
+                sessionId = self.dbConnect.insert_session(ipv4, ipv6, port)
+                msg = 'ALGI' + sessionId
+                try:
+                    conn.send(msg)
+                    self.print_trigger.emit("=> " + str(self.address[0]) + "  " + msg[0:4] + '  ' + sessionId, "12")
+                except socket.error, msg:
+                    self.print_trigger.emit("Connection Error: %s" % msg, "11")
+                except Exception as e:
+                    self.print_trigger.emit('Error: ' + e.message, "11")
+                # Spazio
+                self.print_trigger.emit("", "10")
                 print "login"
 
             elif cmd[:4] == 'LOGO':
@@ -47,6 +66,37 @@ class Tracker_Server(threading.Thread):
                 # > “LOGO”[4B].SessionID[16B]
                 # 1 < “NLOG”[4B].  # partdown[10B]
                 # 2 < “ALOG”[4B].  # partown[10B]
+                sessId = cmd[4:20]
+                self.print_trigger.emit("<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + sessId, "10")
+
+                # Spazio
+                self.print_trigger.emit("", "10")
+
+                delete = self.dbConnect.remove_session(sessId)
+                if delete is True:
+                    print "logout"
+                    # logout concesso
+                else:
+                    print "not logout"
+                    # logout non concesso
+
+                '''
+
+                msg = 'ALGO' + str(delete).zfill(3)
+
+                try:
+
+                    conn.send(msg)
+                    self.print_trigger.emit("=> " + str(self.address[0]) + "  " + msg[0:4] + '  ' + msg[4:7], "12")
+
+                except socket.error, msg:
+                    self.print_trigger.emit("Connection Error: %s" % msg, "11")
+                except Exception as e:
+                    self.print_trigger.emit('Error: ' + e.message, "11")
+
+                # Spazio
+                self.print_trigger.emit("", "10")
+                '''
 
                 print "logout"
 
