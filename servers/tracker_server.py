@@ -108,19 +108,30 @@ class Tracker_Server(threading.Thread):
                 session_id = cmd[4:20]
                 len_file = cmd[20:30]
                 len_part = cmd[30:36]
+                name = cmd[36:136]
+                md5 = cmd[136:168]
+
                 num_part = round(int(len_file)/int(len_part))
                 response = cmd[:4] + num_part
 
                 self.print_trigger.emit(
                     "<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + session_id + "  " + len_file + "  " +
-                    len_part, "10")
+                    len_part+"  "+name+"  "+md5, "10")
                 # Spazio
                 self.print_trigger.emit("", "10")
 
-                self.dbConnect.share_file(response)
-                # TODO: Manca la risposta
+                self.dbConnect.insert_peer(session_id,len_file,len_part,name,md5)
+                #risposta
 
+                response = "AADR" + num_part.ljust(8)
 
+                try:
+                    conn.sendall(response)
+
+                except socket.error, msg:
+                    self.print_trigger.emit('Socket Error: ' + str(response), '11')
+                except Exception as e:
+                    self.print_trigger.emit('Error: ' + e.message, '11')
 
                 self.print_trigger.emit("File succesfully shared by " + str(self.address[0]), "12")
                 # Spazio
@@ -132,6 +143,33 @@ class Tracker_Server(threading.Thread):
                 # < “ALOO”[4B].  # idmd5[3B].{Filemd5_i[32B].Filename_i[100B].LenFile[10B].LenPart[6B]}(i = 1..  # idmd5)
 
                 print "look"
+
+                print "received command: " + cmd[:4]
+                sessionId = cmd[4:20]
+                print "received sessionID: " + str(sessionId)
+                term = cmd[20:40]
+                print "received search term: " + str(term)
+
+
+                #  Finta risposta dal tracker
+                #  Number of different md5
+                idmd5 = None
+
+                response = "ALOO"
+                #TODO: fare look..
+
+                try:
+                    conn.sendall(response)
+
+                except socket.error, msg:
+                    self.print_trigger.emit('Socket Error: ' + str(response), '11')
+                except Exception as e:
+                    self.print_trigger.emit('Error: ' + e.message, '11')
+
+                self.print_trigger.emit("File search shared by " + str(term), "12")
+                # Spazio
+                self.print_trigger.emit("", "10")
+
 
             elif cmd[:4] == 'FCHU':
                 #IPP2P:RND <> IPT:3000
