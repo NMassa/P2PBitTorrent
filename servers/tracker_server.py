@@ -100,7 +100,7 @@ class Tracker_Server(threading.Thread):
 
                 print "logout"
 
-            elif cmd[:4] == 'AADR':
+            elif cmd[:4] == 'ADDR':
                 #IPP2P:RND <> IPT:3000
                 #> “ADDR”[4B].SessionID[16B].LenFile[10B].LenPart[6B].Filename[100B].Filemd5_i[32B]
                 #< “AADR”[4B].  # part[8B]
@@ -111,8 +111,8 @@ class Tracker_Server(threading.Thread):
                 name = cmd[36:136]
                 md5 = cmd[136:168]
 
-                num_part = round(int(len_file)/int(len_part))
-                response = cmd[:4] + num_part
+                num_part = round(int(len_file)/int(len_part), 0)
+                response = cmd[:4] + str(num_part).zfill(8)
 
                 self.print_trigger.emit(
                     "<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + session_id + "  " + len_file + "  " +
@@ -120,10 +120,10 @@ class Tracker_Server(threading.Thread):
                 # Spazio
                 self.print_trigger.emit("", "10")
 
-                self.dbConnect.insert_peer(session_id,len_file,len_part,name,md5)
+                self.dbConnect.insert_peer(name, md5, len_file, len_part, session_id)
                 #risposta
 
-                response = "AADR" + num_part.ljust(8)
+                response = "AADR" + str(num_part).zfill(8)
 
                 try:
                     conn.sendall(response)

@@ -11,6 +11,8 @@ from GUI.ui import *
 from GUI import main_window
 from GUI import download
 
+#sys.path.insert(1, '/Users/stefano/Desktop/P2PBitTorrent')
+
 
 class Main(QtCore.QThread):
     download_trigger = QtCore.pyqtSignal(str, str, int)

@@ -68,7 +68,7 @@ class MongoConnection():
         """
         cursor = self.db.hitpeers.find({"md5": md5}, {"_id": 0, "md5": 0, "session_id": 0})
         return list(cursor)
-        # db.getCollection('hitpeers').find({md5: "md52"}, { _id : 0, md5 : 0, sessionid : 0 })
+        # db.getCollection('hitpeers').find({md5: "md52"}, { _id : 0, md5 : 0, session_id : 0 })
 
     def update_parts(self, md5, sessionID, str_part):
         # TODO: funziona ma migliorabile
@@ -96,10 +96,12 @@ class MongoConnection():
             self.db.hitpeers.remove({"md5": md5, "session_id": sessionID})
         self.db.hitpeers.insert_one({"md5": md5, "session_id": sessionID, "ipv4": ipv4, "ipv6": ipv6, "port": port, "part_list": str_part})
 
-    def insert_peer(self, name, md5, LenFile, LenPart, sessionID, str_part):
+    def insert_peer(self, name, md5, LenFile, LenPart, sessionID):
         file = self.db.files.find_one({"md5": md5})
         if file is not None:
             try:
+                #str_part ="\xff\xff\xff\xff"
+                str_part = chr(int("11111111", 2))
                 self.db.files.update({"md5": md5},
                                      {"$push": {"peers": [{"session_id": sessionID, "part_list": str_part}]}})
                 # self.db.files.update({"md5": md5}, {"$addToSet": {"peers": {"session_id": sessionID, "part_list": str_part}}})
@@ -108,6 +110,8 @@ class MongoConnection():
             output(self.out_lck, "add peer")
         else:
             try:
+                str_part = chr(int("11111111", 2))
+                # TODO: sistemare database peer
                 self.db.files.insert_one({"name": name, "md5": md5, "len_file": LenFile, "len_part": LenPart,
                                           "peers": [{
                                               "session_id": sessionID,
@@ -116,14 +120,19 @@ class MongoConnection():
                                           })
             except:
                 print "error insert file"
+
+        '''
         peer = self.db.hitpeers.find_one({'md5': md5, 'session_id': sessionID})
         if peer is None:
             session = self.db.sessions.find_one({"session_id": sessionID})
-            list(session)
             ipv4 = session['ipv4']
             ipv6 = session['ipv6']
             port = session['port']
+            # TODO: sistemare st_part
+            str_part = ""
             self.db.hitpeers.insert_one({"md5": md5, "session_id": sessionID, "ipv4": ipv4, "ipv6": ipv6, "port": port, "part_list": str_part})
+
+        '''
 
     def get_files(self, query_str):
         """
@@ -133,7 +142,7 @@ class MongoConnection():
         if regexp == "*":
             files = self.db.files.find()
         else:
-            files = self.db.files.find({"file_name": {"$regex": regexp}})
+            files = self.db.files.find({"name": {"$regex": regexp}})
         return files
 
 
