@@ -157,27 +157,29 @@ class Tracker_Server(threading.Thread):
                 # Spazio
                 self.print_trigger.emit("", "10")
 
+                hitpeers = self.dbConnect.get_parts(file_md5)
+
                 #cerco nel db i peer che hanno parti del file richiesto
-                hitpeers = [
-                    {
-                        "ipv4": "172.030.008.001",
-                        "ipv6": "fc00:0000:0000:0000:0000:0000:0008:0001",
-                        "port": "06000",
-                        "part_list": ''.join([random.choice(string.ascii_letters + string.digits) for n in xrange(128)])
-                    },
-                    {
-                        "ipv4": "172.030.008.003",
-                        "ipv6": "fc00:0000:0000:0000:0000:0000:0008:0003",
-                        "port": "06000",
-                        "part_list": ''.join([random.choice(string.ascii_letters + string.digits) for n in xrange(128)])
-                    },
-                    {
-                        "ipv4": "172.030.008.004",
-                        "ipv6": "fc00:0000:0000:0000:0000:0000:0008:0004",
-                        "port": "06000",
-                        "part_list": ''.join([random.choice(string.ascii_letters + string.digits) for n in xrange(128)])
-                    }
-                ]
+                # hitpeers = [
+                #     {
+                #         "ipv4": "172.030.008.001",
+                #         "ipv6": "fc00:0000:0000:0000:0000:0000:0008:0001",
+                #         "port": "06000",
+                #         "part_list": ''.join([random.choice(string.ascii_letters + string.digits) for n in xrange(128)])
+                #     },
+                #     {
+                #         "ipv4": "172.030.008.003",
+                #         "ipv6": "fc00:0000:0000:0000:0000:0000:0008:0003",
+                #         "port": "06000",
+                #         "part_list": ''.join([random.choice(string.ascii_letters + string.digits) for n in xrange(128)])
+                #     },
+                #     {
+                #         "ipv4": "172.030.008.004",
+                #         "ipv6": "fc00:0000:0000:0000:0000:0000:0008:0004",
+                #         "port": "06000",
+                #         "part_list": ''.join([random.choice(string.ascii_letters + string.digits) for n in xrange(128)])
+                #     }
+                # ]
 
                 n_hitpeers = hitpeers.count().zfill(3)
 

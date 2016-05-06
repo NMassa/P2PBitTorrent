@@ -57,7 +57,7 @@ class Server(threading.Thread, QtCore.QThread):
                             try:
                                 # handle the server socket
                                 c = Tracker_Server(item.accept(), self.dbConnect, self.output_lock, self.print_trigger, config.my_ipv4,
-                                                   config.my_ipv6, config.my_port, config.ttl, self.is_supernode)
+                                                   config.my_ipv6, config.my_port)
                                 c.start()
                                 self.threads.append(c)
                             except Exception as e:
@@ -67,7 +67,7 @@ class Server(threading.Thread, QtCore.QThread):
                             try:
                                 # handle the server socket
                                 c = Peer_Server(item.accept(), self.dbConnect, self.output_lock, self.print_trigger, config.my_ipv4,
-                                                config.my_ipv6, config.my_port, config.ttl, self.is_supernode)
+                                                config.my_ipv6, config.my_port)
                                 c.start()
                                 self.threads.append(c)
                             except Exception as e:

@@ -46,7 +46,7 @@ class Client(object):
 
         # “LOGI”[4B].IPP2P[55B].PP2P[5B]
         output(self.out_lck, "Logging in...")
-        msg = 'LOGI' + self.track_ipv4 + '|' + self.track_ipv6 + str(self.track_port).zfill(5)
+        msg = 'LOGI' + self.my_ipv4 + '|' + self.my_ipv6 + str(self.my_port).zfill(5)
 
         response_message = None
         try:
@@ -365,7 +365,6 @@ class Client(object):
                                         })
 
                             part_count += 1
-
 
                     # ordino la lista delle parti in base alle occorrenze in modo crescente
                     sorted_parts = sorted(parts, key=lambda k: k['occ'])

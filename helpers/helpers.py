@@ -153,7 +153,7 @@ def update_progress(lock, count, total, suffix=''):
     lock.release()
 
 
-
+'''
 def sendTo(print_trigger, print_mode, ipv4, ipv6, port, msg):
 
     c = connection.Connection(ipv4, ipv6, port, print_trigger, print_mode)
@@ -221,6 +221,7 @@ def sendTo(print_trigger, print_mode, ipv4, ipv6, port, msg):
         print_trigger.emit('sendTo Error: ' + str(msg), print_mode+"1")
     except Exception as e:
         print_trigger.emit('sendTo Error: ' + e.message, print_mode+"1")
+'''
 
 def is_sender(address, pktIpv4, pktIpv6):
     addrIpv4 = address.split(":")[-1]

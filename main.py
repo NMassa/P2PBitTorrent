@@ -9,10 +9,11 @@ from PyQt4 import QtCore, QtGui
 from GUI.ui import *
 #from GUI.main_window import Ui_MainWindow
 from GUI import main_window
-sys.path.insert(1, '/Users/stefano/Desktop/P2Pkazaa')
+from GUI import download
 
 
 class Main(QtCore.QThread):
+    download_trigger = QtCore.pyqtSignal(str, str, int)
     print_trigger = QtCore.pyqtSignal(str, str)
 
     def __init__(self,parent=None):
@@ -83,7 +84,7 @@ class Main(QtCore.QThread):
 
                         client.login()
 
-                        client.session_id ="dasfndskfdskhfasfskfhksdfkdskndskfdskfdasfndskfdskhfasfskfhksdfkdskndskfdskfdasfndskfdskhfasfskfhksdfkdskndskfdskf"
+                        #client.session_id ="dasfndskfdskhfasfskfhksdfkdskndskfdskfdasfndskfdskhfasfskfhksdfkdskndskfdskfdasfndskfdskhfasfskfhksdfkdskndskfdskf"
 
                         while client.session_id is not None:
                             # print_menu_top(out_lck)
@@ -128,8 +129,12 @@ if __name__ == "__main__":
     mainwindow = main_window.Ui_MainWindow()
     mainwindow.show()
 
+    download_window = download.Ui_MainWindow()
+    download_window.show()
+
     main = Main()
     main.print_trigger.connect(mainwindow.print_on_main_panel)
+    main.download_trigger.connect(download_window.add_progress)
     main.start()
 
     sys.exit(app.exec_())
