@@ -153,10 +153,28 @@ class Tracker_Server(threading.Thread):
 
                 #  Finta risposta dal tracker
                 #  Number of different md5
-                idmd5 = None
+                idmd5 = self.dbConnect.get_files(term)
+                idmd5_count = idmd5.count().zfill(3)
 
-                response = "ALOO"
-                #TODO: fare look..
+                msg = "ALOO" + idmd5_count
+
+                for file in idmd5:
+                    msg += str(file['md5']).ljust(32) + str(file['name']).ljust(100) + str(file['len_file']).zfill(10) + str(file['len_part']).zfill(6)
+                    print_msg += "  " + str(file['md5']).ljust(32) + "  " + str(file['name']).ljust(100) + "  " + str(file['len_file']).zfill(10) + "  " + str(file['len_part']).zfill(6)
+
+                try:
+                    conn.sendall(msg)
+
+                    self.print_trigger.emit(
+                        "=> " + str(conn.getpeername()[0]) + "  " + print_msg, "12")
+                    # Spazio
+                    self.print_trigger.emit("", "10")
+
+                except socket.error, msg:
+                    self.print_trigger.emit('Socket Error: ' + str(msg), '11')
+                except Exception as e:
+                    self.print_trigger.emit('Error: ' + e.message, '11')
+
 
                 try:
                     conn.sendall(response)
