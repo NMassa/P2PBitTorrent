@@ -18,11 +18,12 @@ def hashfile(file, hasher, blocksize=65536):
     return hasher.hexdigest()
 
 def hashfile_ip(file, hasher, bytes_ip):
-    buf = file.read(65536)+bytes_ip
+    buf = file.read(65536)
     while len(buf) > 0:
         hasher.update(buf)
         buf = file.read(65536)
 
+    hasher.update(bytes_ip)
     return hasher.hexdigest()
 
 
