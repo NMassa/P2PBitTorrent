@@ -243,6 +243,21 @@ class Tracker_Server(threading.Thread):
 
                 print_msg = "AFCH" + "  " + n_hitpeers
                 for peer in hitpeers:
+                    ascii_part_list = ""
+                    n = 8
+                    parts_8 = [peer['part_list'][i:i+n] for i in range(0, len(peer['part_list']), n)]
+
+                    #
+                    # L'ultima parte può essere più corta quindi vanno aggiunti degli zeri alla fine, altrimenti python
+                    # li mette all'inizio e cambia il significato della partlist
+                    for part in parts_8:
+                        if len(part) == 8:
+                            ascii_part_list += chr(int(part, 2))
+                        else:
+                            part = part.ljust(8, "0")
+                            ascii_part_list += chr(int(part, 2))
+
+
                     msg += peer['ipv4'] + "|" + peer['ipv6'] + peer['port'] + peer['part_list']
                     print_msg += "  " + peer['ipv4'] + "  " + peer['ipv6'] + "  " + peer['port'] + "  " + peer['part_list']
 
