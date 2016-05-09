@@ -108,7 +108,7 @@ class Tracker_Server(threading.Thread):
                 session_id = cmd[4:20]
                 len_file = cmd[20:30]
                 len_part = cmd[30:36]
-                name = cmd[36:136]
+                name = cmd[36:136].strip(" ")
                 md5 = cmd[136:168]
 
                 num_part = round(int(len_file)/int(len_part), 0)
@@ -154,9 +154,10 @@ class Tracker_Server(threading.Thread):
                 #  Finta risposta dal tracker
                 #  Number of different md5
                 idmd5 = self.dbConnect.get_files(term)
-                idmd5_count = idmd5.count().zfill(3)
+                idmd5_count = str(idmd5.count()).zfill(3)
 
                 msg = "ALOO" + idmd5_count
+                print_msg = "ALOO" + idmd5_count
 
                 for file in idmd5:
                     msg += str(file['md5']).ljust(32) + str(file['name']).ljust(100) + str(file['len_file']).zfill(10) + str(file['len_part']).zfill(6)
@@ -236,7 +237,7 @@ class Tracker_Server(threading.Thread):
                 #     }
                 # ]
 
-                n_hitpeers = hitpeers.count().zfill(3)
+                n_hitpeers = str(hitpeers.count()).zfill(3)
 
                 msg = "AFCH" + n_hitpeers
 

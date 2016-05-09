@@ -167,18 +167,17 @@ class Client(object):
                             found = True
 
                             output(self.out_lck, "Adding file " + file.name)
-                            print '\nSelect a file to share (\'c\' to cancel):'
 
-                            len_part = 262144 #Byte
+                            len_part = 262144  # 256KB
                             #ipv4+ipv6 in byte
                             ip_concat = self.my_ipv4 + self.my_ipv6
                             bytes_ip = str.encode(ip_concat)
                             #my_decoded_str = str.decode(bytes)
 
-                            LenFile=str(os.path.getsize(self.path+"/"+file.name)).ljust(10)
-                            LenPart=len_part
-                            FileName=file.name.ljust(100)
-                            Filemd5_i=hashfile_ip(open(self.path+"/"+file.name, "rb"), hashlib.md5(), bytes_ip).ljust(32)
+                            LenFile = str(os.path.getsize(self.path+"/"+file.name)).zfill(10)
+                            LenPart = str(len_part).zfill(6)
+                            FileName = file.name.ljust(100)
+                            Filemd5_i = hashfile_ip(open(self.path+"/"+file.name, "rb"), hashlib.md5(), bytes_ip)
 
                             msg = "ADDR" + str(self.session_id) + str(LenFile) + str(LenPart) + str(FileName) + str(Filemd5_i)
 
@@ -276,11 +275,11 @@ class Client(object):
                                 for idx in range(0, idmd5):  # Per ogni identificativo diverso si ricevono:
                                     # md5, nome del file, numero di copie, elenco dei peer che l'hanno condiviso
 
-                                    file_i_md5 = self.tracker.recvall(32)  # md5 dell'i-esimo file (32 caratteri)
-                                    file_i_name = self.tracker.recvall(
+                                    file_i_md5 = self.tracker.recv(32)  # md5 dell'i-esimo file (32 caratteri)
+                                    file_i_name = self.tracker.recv(
                                         100).strip()  # nome dell'i-esimo file (100 caratteri compresi spazi)
-                                    len_file_i = self.tracker.recvall(10)
-                                    len_part_i = self.tracker.recvall(6)
+                                    len_file_i = self.tracker.recv(10)
+                                    len_part_i = self.tracker.recv(6)
 
                                     available_files.append({"name": file_i_name,
                                                             "md5": file_i_md5,
@@ -469,6 +468,7 @@ class Client(object):
                                     parts.append({
                                         "n": part_count,
                                         "occ": 1,
+                                        "downloaded": "false",
                                         "peers": [].append({
                                             "ipv4": hp['ipv4'],
                                             "ipv6": hp['ipv6'],
@@ -486,8 +486,6 @@ class Client(object):
                                                        {
                                                             "$set": {"parts": sorted_parts}
                                                        })
-
-
 
             else:
                 output(self.out_lck, 'No peers found.\n')

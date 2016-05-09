@@ -71,7 +71,7 @@ class Main(QtCore.QThread):
                 except SyntaxError:
                     option = None
 
-                if int(option) is None:
+                if option is None:
                     output(out_lck, "Please select an option")
                 elif option == 'e':
                     output(out_lck, "Bye bye")
@@ -119,7 +119,6 @@ class Main(QtCore.QThread):
 
                         else:
                             output(out_lck, "Option " + str(int_option) + " not available")
-
 
 
 if __name__ == "__main__":
