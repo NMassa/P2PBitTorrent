@@ -11,7 +11,7 @@ class Client(object):
     session_id = None
     files_list = []
     #TODO cambiare sul mac con ./fileCondivisi
-    path="./fileCondivisi"
+    path = "./fileCondivisi"
     tracker = None
 
     def __init__(self, my_ipv4, my_ipv6, my_port, track_ipv4, track_ipv6, track_port, database, out_lck, print_trigger):
@@ -178,7 +178,7 @@ class Client(object):
                             LenFile=str(os.path.getsize(self.path+"/"+file.name)).ljust(10)
                             LenPart=len_part
                             FileName=file.name.ljust(100)
-                            Filemd5_i=hashfile_ip(open(self.path+"/"+file.name ,"rb"), hashlib.md5(),bytes_ip).ljust(32)
+                            Filemd5_i=hashfile_ip(open(self.path+"/"+file.name, "rb"), hashlib.md5(), bytes_ip).ljust(32)
 
                             msg = "ADDR" + str(self.session_id) + str(LenFile) + str(LenPart) + str(FileName) + str(Filemd5_i)
 
@@ -210,8 +210,6 @@ class Client(object):
         #IPP2P:RND <> IPT:3000
         #> “LOOK”[4B].SessionID[16B].Ricerca[20B]
         #< “ALOO”[4B].  # idmd5[3B].{Filemd5_i[32B].Filename_i[100B].LenFile[10B].LenPart[6B]}(i = 1..  # idmd5)
-
-        print "search"
 
         output(self.out_lck, 'Insert search term:')
         try:
@@ -249,7 +247,86 @@ class Client(object):
                 # output(self.out_lck, 'Error: ' + e.message)
                 self.print_trigger.emit('Error: ' + e.message, '01')
 
-                # TODO: ricerca..
+            if response_message is None:
+                output(self.out_lck, 'No response from tracker. Look failed')
+            elif response_message[0:4] == 'ALOO':
+
+                idmd5 = None
+                try:
+                    idmd5 = self.tracker.recv(3)  # Numero di identificativi md5
+                except socket.error as e:
+                    print 'Socket Error: ' + e.message
+                except Exception as e:
+                    print 'Error: ' + e.message
+
+                if idmd5 is None:
+                    print 'Error: idmd5 is blank'
+                else:
+                    try:
+                        idmd5 = int(idmd5)
+                    except ValueError:
+                        print "idmd5 is not a number"
+                    else:
+                        if idmd5 == 0:
+                            print "No results found for search term: " + ricerca
+                        elif idmd5 > 0:  # At least one result
+                            available_files = []
+
+                            try:
+                                for idx in range(0, idmd5):  # Per ogni identificativo diverso si ricevono:
+                                    # md5, nome del file, numero di copie, elenco dei peer che l'hanno condiviso
+
+                                    file_i_md5 = self.tracker.recvall(32)  # md5 dell'i-esimo file (32 caratteri)
+                                    file_i_name = self.tracker.recvall(
+                                        100).strip()  # nome dell'i-esimo file (100 caratteri compresi spazi)
+                                    len_file_i = self.tracker.recvall(10)
+                                    len_part_i = self.tracker.recvall(6)
+
+                                    available_files.append({"name": file_i_name,
+                                                            "md5": file_i_md5,
+                                                            "len_file": len_file_i,
+                                                            "len_part": len_part_i
+                                                            })
+
+                            except socket.error, msg:
+                                print 'Socket Error: ' + str(msg)
+                            except Exception as e:
+                                print 'Error: ' + e.message
+
+                            if len(available_files) == 0:
+                                print "No results found for search term: " + ricerca
+                            else:
+                                print "Select a file to download ('c' to cancel): "
+                                for idx, file in enumerate(available_files):  # visualizza i risultati della ricerca
+                                    print str(idx) + ": " + file['name']
+
+                                selected_file = None
+                                while selected_file is None:
+                                    try:
+                                        option = raw_input()  # Selezione del file da scaricare
+                                    except SyntaxError:
+                                        option = None
+
+                                    if option is None:
+                                        print 'Please select an option'
+                                    elif option == 'c':
+                                        return
+                                    else:
+                                        try:
+                                            selected_file = int(option)
+                                        except ValueError:
+                                            print "A number is required"
+
+                                file_to_download = available_files[
+                                    selected_file]  # Recupero del file selezionato dalla lista dei risultati
+
+                                self.fetch(file_to_download)
+
+            else:
+                output(self.out_lck, 'Error: unknown response from tracker.\n')
+                self.print_trigger.emit('Error: unknown response from tracker.', '01')
+
+
 
     def fetch(self, file):
         # IPP2P:RND <> IPT:3000

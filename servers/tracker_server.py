@@ -170,7 +170,6 @@ class Tracker_Server(threading.Thread):
                 # Spazio
                 self.print_trigger.emit("", "10")
 
-
             elif cmd[:4] == 'FCHU':
                 #IPP2P:RND <> IPT:3000
                 #> “FCHU”[4B].SessionID[16B].Filemd5_i[32B]

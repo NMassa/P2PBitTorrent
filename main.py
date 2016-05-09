@@ -57,71 +57,72 @@ class Main(QtCore.QThread):
         server.print_trigger.connect(mainwindow.print_on_main_panel)
         server.start()
 
-        client = Client(config.my_ipv4, config.my_ipv6, int(config.my_port), config.track_ipv4, config.track_ipv6, config.track_port, db, out_lck, self.print_trigger)
+        if not tracker:
+            client = Client(config.my_ipv4, config.my_ipv6, int(config.my_port), config.track_ipv4, config.track_ipv6, config.track_port, db, out_lck, self.print_trigger)
 
-        while client.session_id is None:
-            # print_menu_top(out_lck)
-            output(out_lck, "Select one of the following options ('e' to exit): ")
-            output(out_lck, "1: Log in                                          ")
+            while client.session_id is None:
+                # print_menu_top(out_lck)
+                output(out_lck, "Select one of the following options ('e' to exit): ")
+                output(out_lck, "1: Log in                                          ")
 
-            int_option = None
-            try:
-                option = raw_input()
-            except SyntaxError:
-                option = None
-
-            if int(option) is None:
-                output(out_lck, "Please select an option")
-            elif option == 'e':
-                output(out_lck, "Bye bye")
-                server.stop()
-                sys.exit()  # Interrompo l'esecuzione
-            else:
+                int_option = None
                 try:
-                    int_option = int(option)
-                except ValueError:
-                    output(out_lck, "A number is required")
+                    option = raw_input()
+                except SyntaxError:
+                    option = None
+
+                if int(option) is None:
+                    output(out_lck, "Please select an option")
+                elif option == 'e':
+                    output(out_lck, "Bye bye")
+                    server.stop()
+                    sys.exit()  # Interrompo l'esecuzione
                 else:
-                    if int_option == 1:
-
-                        client.login()
-
-                        #client.session_id ="dasfndskfdskhfasfskfhksdfkdskndskfdskfdasfndskfdskhfasfskfhksdfkdskndskfdskfdasfndskfdskhfasfskfhksdfkdskndskfdskf"
-
-                        while client.session_id is not None:
-                            # print_menu_top(out_lck)
-                            output(out_lck, "1: Add file                                        ")
-                            output(out_lck, "2: Search file                                     ")
-                            output(out_lck, "3: Log out                                         ")
-                            # print_menu_bottom(out_lck)
-
-                            int_option = None
-                            try:
-                                option = raw_input()
-                            except SyntaxError:
-                                option = None
-
-                            if option is None:
-                                output(out_lck, "Please select an option")
-                            else:
-                                try:
-                                    int_option = int(option)
-                                except ValueError:
-                                    output(out_lck, "A number is required")
-                                else:
-                                    if int_option == 1:
-                                        # scelgo un file dalla cartella e lo aggiungo al tracker
-                                        client.share()
-                                    elif int_option == 2:
-                                        # creo una query e la invio al tracker
-                                        client.look()
-                                    elif int_option == 3:
-                                        client.logout()
-                                    else:
-                                        output(out_lck, "Option " + str(int_option) + " not available")
-
+                    try:
+                        int_option = int(option)
+                    except ValueError:
+                        output(out_lck, "A number is required")
                     else:
-                        output(out_lck, "Option " + str(int_option) + " not available")
+                        if int_option == 1:
+
+                            client.login()
+
+                            #client.session_id ="dasfndskfdskhfasfskfhksdfkdskndskfdskfdasfndskfdskhfasfskfhksdfkdskndskfdskfdasfndskfdskhfasfskfhksdfkdskndskfdskf"
+
+                            while client.session_id is not None:
+                                # print_menu_top(out_lck)
+                                output(out_lck, "1: Add file                                        ")
+                                output(out_lck, "2: Search file                                     ")
+                                output(out_lck, "3: Log out                                         ")
+                                # print_menu_bottom(out_lck)
+
+                                int_option = None
+                                try:
+                                    option = raw_input()
+                                except SyntaxError:
+                                    option = None
+
+                                if option is None:
+                                    output(out_lck, "Please select an option")
+                                else:
+                                    try:
+                                        int_option = int(option)
+                                    except ValueError:
+                                        output(out_lck, "A number is required")
+                                    else:
+                                        if int_option == 1:
+                                            # scelgo un file dalla cartella e lo aggiungo al tracker
+                                            client.share()
+                                        elif int_option == 2:
+                                            # creo una query e la invio al tracker
+                                            client.look()
+                                        elif int_option == 3:
+                                            client.logout()
+                                        else:
+                                            output(out_lck, "Option " + str(int_option) + " not available")
+
+                        else:
+                            output(out_lck, "Option " + str(int_option) + " not available")
 
 
 
