@@ -258,8 +258,8 @@ class Tracker_Server(threading.Thread):
                             ascii_part_list += chr(int(part, 2))
 
 
-                    msg += peer['ipv4'] + "|" + peer['ipv6'] + peer['port'] + peer['part_list']
-                    print_msg += "  " + peer['ipv4'] + "  " + peer['ipv6'] + "  " + peer['port'] + "  " + peer['part_list']
+                    msg += peer['ipv4'] + "|" + peer['ipv6'] + peer['port'] + ascii_part_list
+                    print_msg += "  " + peer['ipv4'] + "  " + peer['ipv6'] + "  " + peer['port'] + "  " + ascii_part_list
 
                 try:
                     conn.sendall(msg)
