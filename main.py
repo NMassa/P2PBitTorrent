@@ -87,14 +87,10 @@ class Main(QtCore.QThread):
 
                             client.login()
 
-                            #client.session_id ="dasfndskfdskhfasfskfhksdfkdskndskfdskfdasfndskfdskhfasfskfhksdfkdskndskfdskfdasfndskfdskhfasfskfhksdfkdskndskfdskf"
-
                             while client.session_id is not None:
-                                # print_menu_top(out_lck)
                                 output(out_lck, "1: Add file                                        ")
                                 output(out_lck, "2: Search file                                     ")
                                 output(out_lck, "3: Log out                                         ")
-                                # print_menu_bottom(out_lck)
 
                                 int_option = None
                                 try:

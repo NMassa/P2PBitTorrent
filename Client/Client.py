@@ -326,19 +326,17 @@ class Client(object):
                 output(self.out_lck, 'Error: unknown response from tracker.\n')
                 self.print_trigger.emit('Error: unknown response from tracker.', '01')
 
-
-
     def fetch(self, file):
         # IPP2P:RND <> IPT:3000
         # > “FCHU”[4B].SessionID[16B].Filemd5_i[32B]
         # < “AFCH”[4B].#hitpeer[3B].{IPP2P_i[55B].PP2P_i[5B].PartList_i[#part8]}(i = 1..# hitpeer)
 
-        file = {
-            "name": "prova.avi",
-            "md5": "DYENCNYDABKASDKJCBAS8441132A57ST",
-            "len_file": "1073741824",  # 1GB
-            "len_part": "1048576"  # 256KB
-        }
+        # file = {
+        #     "name": "prova.avi",
+        #     "md5": "DYENCNYDABKASDKJCBAS8441132A57ST",
+        #     "len_file": "1073741824",  # 1GB
+        #     "len_part": "1048576"  # 256KB
+        # }
 
         n_parts = int(file['len_file']) / int(file['len_part'])  # 1024
 
@@ -409,37 +407,74 @@ class Client(object):
                     # scorro i risultati della FETCH ed aggiorno la lista delle parti in base alla disponibilità
                     for hp in hitpeers:
                         part_count = 1
+                        # VALIDO PER part_list salvata come stringa di caratteri ASCII
+
+                        # for c in hp['part_list']:
+                        #     bits = bin(ord(c)).zfill(8)[2:]  # Es: 0b01001101
+                        #     for bit in bits:
+                        #         if bit == 1:  # se la parte è disponibile
+                        #             found = False
+                        #
+                        #             # cerco la parte nella lista, se esiste aggiungo il peer altrimenti la creo
+                        #             for part in parts:
+                        #                 if part['n'] == part_count:
+                        #                     found = True
+                        #
+                        #                     peers = part['peers']
+                        #                     peers.append({
+                        #                         "ipv4": hp['ipv4'],
+                        #                         "ipv6": hp['ipv6'],
+                        #                         "port": hp['port']
+                        #                     })
+                        #
+                        #                     part['occ'] = int(part['occ']) + 1
+                        #                     part['peers'] = peers
+                        #
+                        #             if not found:
+                        #                 parts.append({
+                        #                     "n": part_count,
+                        #                     "occ": 1,
+                        #                     "peers": [].append({
+                        #                         "ipv4": hp['ipv4'],
+                        #                         "ipv6": hp['ipv6'],
+                        #                         "port": hp['port']
+                        #                     })
+                        #                 })
+                        #
+                        #     part_count += 1
+
+                        # VALIDO PER part_list salvata come sequenza di 0 e 1
                         for c in hp['part_list']:
-                            bits = bin(ord(c)).zfill(8)[2:]  # Es: 0b01001101
-                            for bit in bits:
-                                if bit == 1:  # se la parte è disponibile
-                                    found = False
+                            bit = int(c)
+                            if bit == 1:  # se la parte è disponibile
+                                found = False
 
-                                    # cerco la parte nella lista, se esiste aggiungo il peer altrimenti la creo
-                                    for part in parts:
-                                        if part['n'] == part_count:
-                                            found = True
+                                # cerco la parte nella lista, se esiste aggiungo il peer altrimenti la creo
+                                for part in parts:
+                                    if part['n'] == part_count:
+                                        found = True
 
-                                            peers = part['peers']
-                                            peers.append({
-                                                "ipv4": hp['ipv4'],
-                                                "ipv6": hp['ipv6'],
-                                                "port": hp['port']
-                                            })
-
-                                            part['occ'] = int(part['occ']) + 1
-                                            part['peers'] = peers
-
-                                    if not found:
-                                        parts.append({
-                                            "n": part_count,
-                                            "occ": 1,
-                                            "peers": [].append({
-                                                "ipv4": hp['ipv4'],
-                                                "ipv6": hp['ipv6'],
-                                                "port": hp['port']
-                                            })
+                                        peers = part['peers']
+                                        peers.append({
+                                            "ipv4": hp['ipv4'],
+                                            "ipv6": hp['ipv6'],
+                                            "port": hp['port']
                                         })
+
+                                        part['occ'] = int(part['occ']) + 1
+
+                                        part['peers'] = peers
+
+                                if not found:
+                                    parts.append({
+                                        "n": part_count,
+                                        "occ": 1,
+                                        "peers": [].append({
+                                            "ipv4": hp['ipv4'],
+                                            "ipv6": hp['ipv6'],
+                                            "port": hp['port']
+                                        })
+                                    })
 
                             part_count += 1
 
