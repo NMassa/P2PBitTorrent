@@ -112,7 +112,7 @@ class Tracker_Server(threading.Thread):
                 name = cmd[36:136].strip(" ")
                 md5 = cmd[136:168]
 
-                num_part = int(math.ceil(float((len_file)/float(len_part))))
+                num_part = int(math.ceil(float(len_file)/float(len_part)))
                 response = cmd[:4] + str(num_part).zfill(8)
 
                 self.print_trigger.emit(

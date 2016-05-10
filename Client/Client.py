@@ -326,9 +326,9 @@ class Client(object):
 
                                 # avvio un thread che esegue la fetch ogni 60(10) sec
 
-                                self.fetch_thread = threading.Timer(10, self.fetch(file_to_download))
-                                self.fetch_thread.start()
-                                #self.fetch(file_to_download)
+                                #self.fetch_thread = threading.Timer(10, self.fetch(file_to_download))
+                                #self.fetch_thread.start()
+                                self.fetch(file_to_download)
 
             else:
                 output(self.out_lck, 'Error: unknown response from tracker.\n')
@@ -348,7 +348,7 @@ class Client(object):
 
         n_parts = int(math.ceil(float(file['len_file']) / float(file['len_part'])))  # 1024
 
-        n_parts8 = int(math.ceil(float(n_parts/8)))  # 128
+        n_parts8 = int(math.ceil(float(float(n_parts)/8)))  # 128
 
         output(self.out_lck, "Fetching parts informations about file " + file['name'])
         msg = "FCHU" + self.session_id + file['md5']
@@ -411,6 +411,7 @@ class Client(object):
                         parts = download['parts']
                     else:
                         self.dbConnect.insert_download(file['name'], file['md5'], file['len_file'], file['len_part'])
+                        parts = []
                         # parts = []
                         # self.dbConnect.download.inser_one({
                         #     "name": file['name'],
@@ -426,45 +427,79 @@ class Client(object):
                         # VALIDO PER part_list salvata come stringa di caratteri ASCII
 
                         for c in hp['part_list']:
-                            bits = bin(ord(c)).zfill(8)[2:]  # Es: 0b01001101
+                            bits = bin(ord(c)).replace("0b", "").replace("b", "").zfill(8)  # Es: 0b01001101
                             for bit in bits:
+
                                 if int(bit) == 1:  # se la parte è disponibile
-                                    found = False
+                                    part = [part for part in parts if part['n'] == part_count]
 
-                                    # cerco la parte nella lista, se esiste aggiungo il peer altrimenti la creo
-                                    for part in parts:
-                                        if part['n'] == part_count:
-                                            found = True
+                                    if len(part) > 0:
+                                        peers = parts[part_count-1]['peers'] if parts[part_count-1]['peers'] is not None else []
 
-                                            peers = part['peers'] if part['peers'] is not None else []
+                                        exists = [True for peer in peers if (peer['ipv4'] == hp['ipv4']) or (peer['ipv6'] == hp['ipv6'])]
 
-                                            exists = [True for peer in peers if (peer['ipv4'] == hp['ipv4']) or (peer['ipv6'] == hp['ipv6'])]
+                                        if not exists:
+                                            peers.append({
+                                                         "ipv4": hp['ipv4'],
+                                                         "ipv6": hp['ipv6'],
+                                                         "port": hp['port']
+                                                     })
 
-                                            if not exists:
-                                                peers.append({
-                                                    "ipv4": hp['ipv4'],
-                                                    "ipv6": hp['ipv6'],
-                                                    "port": hp['port']
-                                                })
+                                            parts[part_count - 1]['occ'] = int(parts[part_count - 1]['occ']) + 1
 
-                                                part['occ'] = int(part['occ']) + 1
-
-                                            part['peers'] = peers
-
-                                    if not found:
+                                        parts[part_count-1]['peers'] = peers
+                                    else:
                                         peers = []
                                         peers.append({
-                                                "ipv4": hp['ipv4'],
-                                                "ipv6": hp['ipv6'],
-                                                "port": hp['port']
-                                            })
+                                                     "ipv4": hp['ipv4'],
+                                                     "ipv6": hp['ipv6'],
+                                                     "port": hp['port']
+                                                 })
                                         parts.append({
-                                            "n": part_count,
-                                            "occ": 1,
-                                            "peers": peers
-                                        })
+                                                 "n": part_count,
+                                                 "occ": 1,
+                                                 "peers": peers
+                                             })
 
-                            part_count += 1
+                                    # found = False
+                                    #
+                                    # # cerco la parte nella lista, se esiste aggiungo il peer altrimenti la creo
+                                    # for part in parts:
+                                    #     if part['n'] == part_count:
+                                    #         found = True
+                                    #
+                                    #         peers = part['peers'] if part['peers'] is not None else []
+                                    #
+                                    #         exists = [True for peer in peers if (peer['ipv4'] == hp['ipv4']) or (peer['ipv6'] == hp['ipv6'])]
+                                    #
+                                    #         if not exists:
+                                    #             peers.append({
+                                    #                 "ipv4": hp['ipv4'],
+                                    #                 "ipv6": hp['ipv6'],
+                                    #                 "port": hp['port']
+                                    #             })
+                                    #
+                                    #             part['occ'] = int(part['occ']) + 1
+                                    #
+                                    #         part['peers'] = peers
+                                    #
+                                    # if not found:
+                                    #     peers = []
+                                    #     peers.append({
+                                    #             "ipv4": hp['ipv4'],
+                                    #             "ipv6": hp['ipv6'],
+                                    #             "port": hp['port']
+                                    #         })
+                                    #     parts.append({
+                                    #         "n": part_count,
+                                    #         "occ": 1,
+                                    #         "peers": peers
+                                    #     })
+
+                                    part_count += 1
+                                else:
+                                    part_count += 1
+
 
                         # VALIDO PER part_list salvata come sequenza di 0 e 1
                         # for c in hp['part_list']:
@@ -515,7 +550,7 @@ class Client(object):
 
                     output(self.out_lck, "Part table updated, fetch succeeded.")
 
-                    self.downlaod(file['md5'])
+                    #self.downlaod(file['md5'])
 
             else:
                 output(self.out_lck, 'No peers found.\n')
@@ -530,7 +565,7 @@ class Client(object):
         # > “RETP”[4B].Filemd5_i[32B].PartNum[8B]
         # < “AREP”[4B].  # chunk[6B].{Lenchunk_i[5B].data[LB]}(i=1..#chunk)
 
-        parts_table = self.dbConnect.download.find_one({"md5": md5})
+        parts_table = self.dbConnect.get_download(md5)
 
         if parts_table:
             len_file = parts_table['len_file']
