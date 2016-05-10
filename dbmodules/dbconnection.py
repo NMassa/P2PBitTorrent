@@ -164,3 +164,24 @@ class MongoConnection():
         else:
             files = self.db.files.find({"name": {"$regex": regexp}})
         return files
+
+    def get_download(self, md5):
+        download = self.db.download.find_one({"md5": md5})
+        return download
+
+    def insert_download(self, name, md5, len_file, len_part):
+        parts = []
+        self.db.download.insert_one({
+            "name": name,
+            "md5": md5,
+            "len_file": len_file,
+            "len_part": len_part,
+            "parts": parts
+        })
+
+    def update_download_parts(self, md5, sorted_parts):
+
+        self.db.download.update_one({"md5": md5},
+                                           {
+                                                "$set": {"parts": sorted_parts}
+                                           })

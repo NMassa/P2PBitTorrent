@@ -398,102 +398,106 @@ class Client(object):
                 if hitpeers:
                     # cerco la tabella delle parti di cui fare il download se non esiste la creo
 
-                    download = self.dbConnect.download.find_one({"md5": file['md5']})
+                    download = self.dbConnect.get_download(file['md5'])
+
                     if download:
                         parts = download['parts']
                     else:
-                        parts = []
-                        self.dbConnect.downlaod.inser_one({
-                            "name": file['name'],
-                            "md5": file['md5'],
-                            "len_file": file['len_file'],  # 1GB
-                            "len_part": file['len_part'],  # 256KB
-                            "parts": parts
-                        })
+                        self.dbConnect.insert_download(file['name'], file['md5'], file['len_file'], file['len_part'])
+                        # parts = []
+                        # self.dbConnect.download.inser_one({
+                        #     "name": file['name'],
+                        #     "md5": file['md5'],
+                        #     "len_file": file['len_file'],  # 1GB
+                        #     "len_part": file['len_part'],  # 256KB
+                        #     "parts": parts
+                        # })
 
                     # scorro i risultati della FETCH ed aggiorno la lista delle parti in base alla disponibilità
                     for hp in hitpeers:
                         part_count = 1
                         # VALIDO PER part_list salvata come stringa di caratteri ASCII
 
-                        # for c in hp['part_list']:
-                        #     bits = bin(ord(c)).zfill(8)[2:]  # Es: 0b01001101
-                        #     for bit in bits:
-                        #         if bit == 1:  # se la parte è disponibile
-                        #             found = False
-                        #
-                        #             # cerco la parte nella lista, se esiste aggiungo il peer altrimenti la creo
-                        #             for part in parts:
-                        #                 if part['n'] == part_count:
-                        #                     found = True
-                        #
-                        #                     peers = part['peers']
-                        #                     peers.append({
-                        #                         "ipv4": hp['ipv4'],
-                        #                         "ipv6": hp['ipv6'],
-                        #                         "port": hp['port']
-                        #                     })
-                        #
-                        #                     part['occ'] = int(part['occ']) + 1
-                        #                     part['peers'] = peers
-                        #
-                        #             if not found:
-                        #                 parts.append({
-                        #                     "n": part_count,
-                        #                     "occ": 1,
-                        #                     "peers": [].append({
-                        #                         "ipv4": hp['ipv4'],
-                        #                         "ipv6": hp['ipv6'],
-                        #                         "port": hp['port']
-                        #                     })
-                        #                 })
-                        #
-                        #     part_count += 1
-
-                        # VALIDO PER part_list salvata come sequenza di 0 e 1
                         for c in hp['part_list']:
-                            bit = int(c)
-                            if bit == 1:  # se la parte è disponibile
-                                found = False
+                            bits = bin(ord(c)).zfill(8)[2:]  # Es: 0b01001101
+                            for bit in bits:
+                                if bit == 1:  # se la parte è disponibile
+                                    found = False
 
-                                # cerco la parte nella lista, se esiste aggiungo il peer altrimenti la creo
-                                for part in parts:
-                                    if part['n'] == part_count:
-                                        found = True
+                        #             # cerco la parte nella lista, se esiste aggiungo il peer altrimenti la creo
+                                    for part in parts:
+                                        if part['n'] == part_count:
+                                            found = True
 
-                                        peers = part['peers']
-                                        peers.append({
-                                            "ipv4": hp['ipv4'],
-                                            "ipv6": hp['ipv6'],
-                                            "port": hp['port']
+                                            peers = part['peers']
+                                            peers.append({
+                                                "ipv4": hp['ipv4'],
+                                                "ipv6": hp['ipv6'],
+                                                "port": hp['port']
+                                            })
+                        #
+                                            part['occ'] = int(part['occ']) + 1
+                                            part['peers'] = peers
+
+                                    if not found:
+                                        parts.append({
+                                            "n": part_count,
+                                            "occ": 1,
+                                            "peers": [].append({
+                                                "ipv4": hp['ipv4'],
+                                                "ipv6": hp['ipv6'],
+                                                "port": hp['port']
+                                            })
                                         })
-
-                                        part['occ'] = int(part['occ']) + 1
-
-                                        part['peers'] = peers
-
-                                if not found:
-                                    parts.append({
-                                        "n": part_count,
-                                        "occ": 1,
-                                        "downloaded": "false",
-                                        "peers": [].append({
-                                            "ipv4": hp['ipv4'],
-                                            "ipv6": hp['ipv6'],
-                                            "port": hp['port']
-                                        })
-                                    })
 
                             part_count += 1
+
+                        # VALIDO PER part_list salvata come sequenza di 0 e 1
+                        # for c in hp['part_list']:
+                        #     bit = int(c)
+                        #     if bit == 1:  # se la parte è disponibile
+                        #         found = False
+                        #
+                        #         # cerco la parte nella lista, se esiste aggiungo il peer altrimenti la creo
+                        #         for part in parts:
+                        #             if part['n'] == part_count:
+                        #                 found = True
+                        #
+                        #                 peers = part['peers']
+                        #                 peers.append({
+                        #                     "ipv4": hp['ipv4'],
+                        #                     "ipv6": hp['ipv6'],
+                        #                     "port": hp['port']
+                        #                 })
+                        #
+                        #                 part['occ'] = int(part['occ']) + 1
+                        #
+                        #                 part['peers'] = peers
+                        #
+                        #         if not found:
+                        #             parts.append({
+                        #                 "n": part_count,
+                        #                 "occ": 1,
+                        #                 "downloaded": "false",
+                        #                 "peers": [].append({
+                        #                     "ipv4": hp['ipv4'],
+                        #                     "ipv6": hp['ipv6'],
+                        #                     "port": hp['port']
+                        #                 })
+                        #             })
+                        #
+                        #     part_count += 1
 
                     # ordino la lista delle parti in base alle occorrenze in modo crescente
                     sorted_parts = sorted(parts, key=lambda k: k['occ'])
 
                     # aggiorno la lista già ordinata
-                    self.dbConnect.downlaod.update_one({"md5": file['md5']},
-                                                       {
-                                                            "$set": {"parts": sorted_parts}
-                                                       })
+                    self.dbConnect.update_download_parts(file['md5'], sorted_parts)
+
+                    # self.dbConnect.download.update_one({"md5": file['md5']},
+                    #                                    {
+                    #                                         "$set": {"parts": sorted_parts}
+                    #                                    })
 
                     output(self.out_lck, "Part table updated, fetch succeded.")
 
@@ -509,6 +513,19 @@ class Client(object):
         # IPP2P:RND <> IPP2P:PP2P
         # > “RETP”[4B].Filemd5_i[32B].PartNum[8B]
         # < “AREP”[4B].  # chunk[6B].{Lenchunk_i[5B].data[LB]}(i=1..#chunk)
+
+        parts_table = self.dbConnect.download.find_one({"md5": md5})
+
+        if parts_table:
+            len_file = parts_table['len_file']
+            len_part = parts_table['len_part']
+
+
+
+
+
+        else:
+            output(self.out_lck, 'Error: parts table not found.\n')
 
 
         # Terminato il download fermo la fetch
