@@ -325,7 +325,7 @@ class Client(object):
 
                                 # avvio un thread che esegue la fetch ogni 60(10) sec
 
-                                self.fetch_thread = threading.timer(10, self.fetch(file_to_download))
+                                self.fetch_thread = threading.Timer(10, self.fetch(file_to_download))
                                 self.fetch_thread.start()
                                 #self.fetch(file_to_download)
 
@@ -495,6 +495,8 @@ class Client(object):
                                                             "$set": {"parts": sorted_parts}
                                                        })
 
+                    output(self.out_lck, "Part table updated, fetch succeded.")
+
             else:
                 output(self.out_lck, 'No peers found.\n')
                 self.print_trigger.emit('No peers found.\n', '01')
@@ -507,7 +509,6 @@ class Client(object):
         # IPP2P:RND <> IPP2P:PP2P
         # > “RETP”[4B].Filemd5_i[32B].PartNum[8B]
         # < “AREP”[4B].  # chunk[6B].{Lenchunk_i[5B].data[LB]}(i=1..#chunk)
-
 
 
         # Terminato il download fermo la fetch

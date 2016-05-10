@@ -237,7 +237,7 @@ class Tracker_Server(threading.Thread):
                 #     }
                 # ]
 
-                n_hitpeers = str(hitpeers.count()).zfill(3)
+                n_hitpeers = str(len(hitpeers)).zfill(3)
 
                 msg = "AFCH" + n_hitpeers
 
@@ -257,9 +257,10 @@ class Tracker_Server(threading.Thread):
                             part = part.ljust(8, "0")
                             ascii_part_list += chr(int(part, 2))
 
+                    print ascii_part_list
 
-                    msg += peer['ipv4'] + "|" + peer['ipv6'] + peer['port'] + ascii_part_list
-                    print_msg += "  " + peer['ipv4'] + "  " + peer['ipv6'] + "  " + peer['port'] + "  " + ascii_part_list
+                    msg += str(peer['ipv4']) + "|" + str(peer['ipv6']) + str(peer['port']) + str(ascii_part_list)
+                    print_msg += "  " + str(peer['ipv4']) + "  " + str(peer['ipv6']) + "  " + str(peer['port']) + "  " + str(ascii_part_list)
 
                 try:
                     conn.sendall(msg)
