@@ -60,7 +60,7 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
-
+.config.py
 .idea
 
 config.py

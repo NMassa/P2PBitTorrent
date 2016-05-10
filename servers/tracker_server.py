@@ -281,6 +281,30 @@ class Tracker_Server(threading.Thread):
                 # > “RPAD”[4B].SessionID[16B].Filemd5_i[32B].PartNum[8B]
                 # < “APAD”[4B].  # Part[8B]
 
+                session_id = cmd[4:20]
+                md5 = cmd[20:52]
+                num_part = cmd[52:60]
+                print "received command: " + cmd[:4]
+
+                self.print_trigger.emit(
+                    "<= " + str(self.address[0]) + "  " + session_id + "  " + md5 + "  " + num_part, "10")
+                # Spazio
+                self.print_trigger.emit("", "10")
+
+                response = "APAD" + num_part
+
+                try:
+                    conn.sendall(response)
+
+                except socket.error, msg:
+                    self.print_trigger.emit('Socket Error: ' + str(response), '11')
+                except Exception as e:
+                    self.print_trigger.emit('Error: ' + e.message, '11')
+
+                self.print_trigger.emit("File succesfully downloaded by " + str(self.address[0]), "12")
+                # Spazio
+                self.print_trigger.emit("", "10")
+
                 print "download notify"
 
             else:
