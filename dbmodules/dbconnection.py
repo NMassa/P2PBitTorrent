@@ -4,7 +4,7 @@ import re
 import sys
 from pymongo import MongoClient
 from helpers.helpers import *
-
+import math
 
 class MongoConnection():
 
@@ -126,7 +126,7 @@ class MongoConnection():
         else:
             # insert
             try:
-                n_parts = int(LenFile) / int(LenPart)
+                n_parts = int(math.ceil(float((LenFile)/float(LenPart))))
                 str_part = ""
                 i = 0
                 for i in range(1, n_parts):
@@ -185,3 +185,19 @@ class MongoConnection():
                                            {
                                                 "$set": {"parts": sorted_parts}
                                            })
+
+    def downloading(self, md5):
+        download = self.db.download.find_one({"md5": md5})
+        parts = download['parts']
+
+        completed = True
+        for part in parts:
+            if part['downloaded'] == "false":
+                completed = False
+
+        return completed
+
+    def get_downloadable_part(self, md5, idx):
+        cursor = self.db.download.find({"md5": md5},{"parts": {"$elemMatch": {"n": idx}}})
+        part = cursor[0]
+        return part

@@ -1,6 +1,7 @@
 # coding=utf-8
 # coding=utf-8
 import socket, os, hashlib, select, sys, time
+import math
 
 sys.path.insert(1, '/home/massa/Documenti/PycharmProjects/P2PKazaa')
 from random import randint
@@ -111,7 +112,7 @@ class Tracker_Server(threading.Thread):
                 name = cmd[36:136].strip(" ")
                 md5 = cmd[136:168]
 
-                num_part = round(int(len_file)/int(len_part), 0)
+                num_part = int(math.ceil(float((len_file)/float(len_part))))
                 response = cmd[:4] + str(num_part).zfill(8)
 
                 self.print_trigger.emit(

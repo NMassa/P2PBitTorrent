@@ -1,10 +1,11 @@
 # coding=utf-8
 import time
-
+import math
 from SharedFile import SharedFile
 from helpers import connection
 from helpers.helpers import *
 import threading
+from multiprocessing import Pool
 
 
 class Client(object):
@@ -345,9 +346,9 @@ class Client(object):
         #     "len_part": "1048576"  # 256KB
         # }
 
-        n_parts = int(file['len_file']) / int(file['len_part'])  # 1024
+        n_parts = int(math.ceil(float(file['len_file']) / float(file['len_part'])))  # 1024
 
-        n_parts8 = int(round(n_parts/8))  # 128
+        n_parts8 = int(math.ceil(float(n_parts/8)))  # 128
 
         output(self.out_lck, "Fetching parts informations about file " + file['name'])
         msg = "FCHU" + self.session_id + file['md5']
@@ -382,11 +383,17 @@ class Client(object):
 
                 hitpeers = []
 
+                output(self.out_lck, "hitpeers")
+
                 for i in range(0, n_hitpeers):
                     hitpeer_ipv4 = self.tracker.recv(16).replace("|", "")
+                    output(self.out_lck, hitpeer_ipv4)
                     hitpeer_ipv6 = self.tracker.recv(39)
+                    output(self.out_lck, hitpeer_ipv6)
                     hitpeer_port = self.tracker.recv(5)
+                    output(self.out_lck, hitpeer_port)
                     hitpeer_partlist = self.tracker.recv(n_parts8)
+                    output(self.out_lck, hitpeer_partlist)
 
                     hitpeers.append({
                         "ipv4": hitpeer_ipv4,
@@ -421,33 +428,40 @@ class Client(object):
                         for c in hp['part_list']:
                             bits = bin(ord(c)).zfill(8)[2:]  # Es: 0b01001101
                             for bit in bits:
-                                if bit == 1:  # se la parte è disponibile
+                                if int(bit) == 1:  # se la parte è disponibile
                                     found = False
 
-                        #             # cerco la parte nella lista, se esiste aggiungo il peer altrimenti la creo
+                                    # cerco la parte nella lista, se esiste aggiungo il peer altrimenti la creo
                                     for part in parts:
                                         if part['n'] == part_count:
                                             found = True
 
-                                            peers = part['peers']
-                                            peers.append({
-                                                "ipv4": hp['ipv4'],
-                                                "ipv6": hp['ipv6'],
-                                                "port": hp['port']
-                                            })
-                        #
-                                            part['occ'] = int(part['occ']) + 1
+                                            peers = part['peers'] if part['peers'] is not None else []
+
+                                            exists = [True for peer in peers if (peer['ipv4'] == hp['ipv4']) or (peer['ipv6'] == hp['ipv6'])]
+
+                                            if not exists:
+                                                peers.append({
+                                                    "ipv4": hp['ipv4'],
+                                                    "ipv6": hp['ipv6'],
+                                                    "port": hp['port']
+                                                })
+
+                                                part['occ'] = int(part['occ']) + 1
+
                                             part['peers'] = peers
 
                                     if not found:
-                                        parts.append({
-                                            "n": part_count,
-                                            "occ": 1,
-                                            "peers": [].append({
+                                        peers = []
+                                        peers.append({
                                                 "ipv4": hp['ipv4'],
                                                 "ipv6": hp['ipv6'],
                                                 "port": hp['port']
                                             })
+                                        parts.append({
+                                            "n": part_count,
+                                            "occ": 1,
+                                            "peers": peers
                                         })
 
                             part_count += 1
@@ -499,7 +513,9 @@ class Client(object):
                     #                                         "$set": {"parts": sorted_parts}
                     #                                    })
 
-                    output(self.out_lck, "Part table updated, fetch succeded.")
+                    output(self.out_lck, "Part table updated, fetch succeeded.")
+
+                    self.downlaod(file['md5'])
 
             else:
                 output(self.out_lck, 'No peers found.\n')
@@ -520,8 +536,27 @@ class Client(object):
             len_file = parts_table['len_file']
             len_part = parts_table['len_part']
 
+            parts = parts_table['parts']
 
+            if parts:
+                output(self.out_lck, "ok")
 
+                # indice per scorrere la lista delle parti da scaricare (già ordinate in base alle occorrenze)
+                download_idx = 0
+
+                #pool = Pool(5)
+                while self.dbConnect.downloading(md5):
+                    # Download in corso
+                    part = self.dbConnect.get_downloadable_part(md5, download_idx)
+
+                    selected_peer = random.choice(list(part['peers']))
+
+                    output(self.out_lck, "Downloading part " + part['n'] + " from " + selected_peer['ipv4'])
+
+                    download_idx += 1
+
+            else:
+                output(self.out_lck, 'Error: no parts available.\n')
 
 
         else:
