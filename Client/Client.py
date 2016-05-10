@@ -387,13 +387,13 @@ class Client(object):
 
                 for i in range(0, n_hitpeers):
                     hitpeer_ipv4 = self.tracker.recv(16).replace("|", "")
-                    output(self.out_lck, hitpeer_ipv4)
+                    #output(self.out_lck, hitpeer_ipv4)
                     hitpeer_ipv6 = self.tracker.recv(39)
-                    output(self.out_lck, hitpeer_ipv6)
+                    #output(self.out_lck, hitpeer_ipv6)
                     hitpeer_port = self.tracker.recv(5)
-                    output(self.out_lck, hitpeer_port)
+                    #output(self.out_lck, hitpeer_port)
                     hitpeer_partlist = self.tracker.recv(n_parts8)
-                    output(self.out_lck, hitpeer_partlist)
+                    #output(self.out_lck, hitpeer_partlist)
 
                     hitpeers.append({
                         "ipv4": hitpeer_ipv4,
