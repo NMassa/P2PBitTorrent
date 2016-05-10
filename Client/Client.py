@@ -601,10 +601,40 @@ class Client(object):
         # Terminato il download fermo la fetch
         self.fetch_thread.stop()
 
-    def notify_tracker(self):
+    def notify_tracker(self, file, PartNum):
         #IPP2P:RND <> IPT:3000
         #> “RPAD”[4B].SessionID[16B].Filemd5_i[32B].PartNum[8B]
         #< “APAD”[4B].  # Part[8B]
+
+        msg = "RPAD" + self.session_id + file['md5'] + PartNum
+        response_message = None
+
+        try:
+            self.check_connection()
+
+            self.tracker.sendall(msg)
+            self.print_trigger.emit('=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' +
+                                    self.session_id + '  ' + file['md5'] + PartNum, "00")
+
+            # Spazio
+            self.print_trigger.emit("", "00")
+
+            response_message = self.tracker.recv(4)
+            self.print_trigger.emit('<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4], '02')
+
+        except socket.error, msg:
+            self.print_trigger.emit('Socket Error: ' + str(msg), '01')
+
+        except Exception as e:
+            self.print_trigger.emit('Error: ' + e.message, '01')
+
+        if response_message is None:
+            output(self.out_lck, 'No response from tracker. download failed')
+        elif response_message[0:4] == 'RPAD':
+
+            num_part = int(self.tracker.recv(8))
+
+            output(self.out_lck, "Part download, download succeeded.")
 
         print "notify tracker"
 
