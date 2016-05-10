@@ -4,6 +4,7 @@ import time
 from SharedFile import SharedFile
 from helpers import connection
 from helpers.helpers import *
+import threading
 
 
 class Client(object):
@@ -28,6 +29,7 @@ class Client(object):
         self.dbConnect = database
         self.out_lck = out_lck
         self.print_trigger = print_trigger
+        self.fetch_thread = None
 
         # Searching for shareable files
         for root, dirs, files in os.walk(self.path):
@@ -319,7 +321,13 @@ class Client(object):
                                 file_to_download = available_files[
                                     selected_file]  # Recupero del file selezionato dalla lista dei risultati
 
-                                self.fetch(file_to_download)
+
+
+                                # avvio un thread che esegue la fetch ogni 60(10) sec
+
+                                self.fetch_thread = threading.timer(10, self.fetch(file_to_download))
+                                self.fetch_thread.start()
+                                #self.fetch(file_to_download)
 
             else:
                 output(self.out_lck, 'Error: unknown response from tracker.\n')
@@ -495,12 +503,15 @@ class Client(object):
             output(self.out_lck, 'Error: unknown response from tracker.\n')
             self.print_trigger.emit('Error: unknown response from tracker.', '01')
 
-    def downlaod(self, host_ipv4, host_ipv6, host_port, filemd5, part_n):
+    def downlaod(self, md5):
         # IPP2P:RND <> IPP2P:PP2P
         # > “RETP”[4B].Filemd5_i[32B].PartNum[8B]
         # < “AREP”[4B].  # chunk[6B].{Lenchunk_i[5B].data[LB]}(i=1..#chunk)
 
-        print "download"
+
+
+        # Terminato il download fermo la fetch
+        self.fetch_thread.stop()
 
     def notify_tracker(self):
         #IPP2P:RND <> IPT:3000
