@@ -66,9 +66,15 @@ class MongoConnection():
         """
             Restituisce una lista di peer con ip+porta e la stringa delle parti possedute
         """
-        cursor = self.db.hitpeers.find({"md5": md5}, {"_id": 0, "md5": 0, "session_id": 0})
-        return list(cursor)
+        # cursor = self.db.hitpeers.find({"md5": md5}, {"_id": 0, "md5": 0, "session_id": 0}) vecchia versione db
         # db.getCollection('hitpeers').find({md5: "md52"}, { _id : 0, md5 : 0, session_id : 0 })
+        cursor = self.db.files.find({"md5": md5}, {"_id": 0, "md5": 0, "peers.session_id": 0, "name": 0, "len_part": 0,
+                                                   "len_file": 0})
+
+        # TODO: vedere lista
+        peers = list(cursor)
+        prova = peers[0]
+        return prova['peers']
 
     def update_parts(self, md5, sessionID, str_part):
         # TODO: funziona ma migliorabile
@@ -78,12 +84,20 @@ class MongoConnection():
         part = self.db.files.find_one({"md5": md5, "peers.session_id": sessionID})
         if part is not None:
             try:
-                self.db.files.update({'md5': md5, 'peers.session_id': sessionID}, {"$set": {'part_list': str_part}})
+                #self.db.files.update({'md5': md5, 'peers.session_id': sessionID}, {"$set": {'part_list': str_part}})
                 # db.files.update({'md5': "3md5", 'peers.session_id': "id1"}, {"$set": {'part_list': "dddd"}}) funziona
                 # db.getCollection('files').update({"md5": "1md5"}, {"$set": {"peers.part_list": "bbb"}})
 
-            except:
-                output(self.out_lck, "error insert file")
+                peer = self.db.files.find_one({'md5': "3md5", 'peers.session_id': "id1"},
+                                              {'peers': {"$elemMatch": {'session_id': "id1"}}})
+                #db.getCollection('files').findOne({'md5' : "3md5", 'peers.session_id' : "id1"}, {"peers": {"$elemMatch": {"session_id": "id1"}}})
+                str_part_old = peer['session_id']
+
+                self.db.files.update({"md5": md5, 'peers': {'$elemMatch': {'session_id':sessionID}}}, {"$set": {'peers.$.part_list': "str_part"}})
+                # db.getCollection('files').update({"md5": "1md5", 'peers': {'$elemMatch' : {'session_id':"id1"}}},{"$set":{'peers.$.part_list': "aaaaaaaaaa"}})
+                print "update part_list non esistente"
+            except Exception as e:
+                print "error update file: " + e.message
         else:
             print "file or user not found"
         session = self.db.sessions.find_one({"session_id": sessionID})
@@ -99,6 +113,7 @@ class MongoConnection():
     def insert_peer(self, name, md5, LenFile, LenPart, sessionID):
         file = self.db.files.find_one({"md5": md5})
         if file is not None:
+            # update
             try:
                 #str_part ="\xff\xff\xff\xff"
                 str_part = chr(int("11111111", 2))
@@ -109,15 +124,20 @@ class MongoConnection():
                 output(self.out_lck, "error insert file")
             output(self.out_lck, "add peer")
         else:
+            # insert
             try:
-                str_part = chr(int("11111111", 2))
+                n_parts = int(LenFile) / int(LenPart)
+                str_part = ""
+                i = 0
+                for i in range(1, n_parts):
+                    str_part = str_part + "1"
+
+                peer = self.db.sessions.find_one({"session_id": sessionID})
+
                 # TODO: sistemare database peer
                 self.db.files.insert_one({"name": name, "md5": md5, "len_file": LenFile, "len_part": LenPart,
-                                          "peers": [{
-                                              "session_id": sessionID,
-                                              "part_list": str_part
-                                          }]
-                                          })
+                                          'peers': [{'session_id': sessionID, 'ipv4': peer['ipv4'], 'ipv6': peer['ipv6'],
+                                                     'port': peer['port'],'part_list': str_part}]})
             except:
                 print "error insert file"
 
@@ -144,6 +164,3 @@ class MongoConnection():
         else:
             files = self.db.files.find({"name": {"$regex": regexp}})
         return files
-
-
-
