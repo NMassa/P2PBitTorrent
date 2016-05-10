@@ -1,3 +1,5 @@
+import itertools
+import collections
 # coding=utf-8
 import datetime
 import re
@@ -60,7 +62,54 @@ class MongoConnection():
 
     # TODO: da finire
     def remove_session(self, sessionID):
-        return True
+
+        output = None
+        files = self.db.files.find({'peers.session_id': sessionID})
+        if files is None:
+            return True
+        else:
+            lista_file = list(files)
+            for i in range(len(lista_file)):  # ciclo numero di file
+                index2 = lista_file[i]
+                print index2['name']
+                index_peer = index2['peers']
+                n_parts = int(index2['len_file']) / int(index2['len_part'])
+                parts = []
+                for j in range(0, n_parts):  # ciclo paerti del file
+                    is_available = False
+
+                    # prova
+                    interetor = range(0, len(index_peer)).__iter__()
+
+                    # for peer in range(len(index_peer)):     # ciclo numero di peer
+                    for peer in interetor:
+                        if index_peer[peer]['ipv4'] == '172.030.008.002':
+                            # self.consume(interetor)
+                            peer = peer + 1
+                        else:
+                            if index_peer[peer]['part_list'][j] == '1':
+                                print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + str(j)
+                                is_available = True
+                                break
+                            else:
+                                print " "
+                                is_available = False
+                                # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4']
+
+                    if is_available:
+                        parts.append('1')  # parte presente
+                    else:
+                        parts.append('0')
+                if '0' in parts:
+                    print "male"
+                    return False
+                else:
+                    return True
+                    break
+            return True
+
+    def consume(self, interetor):
+        collections.deque(itertools.islice(interetor, 1))
 
     def get_parts(self, md5):
         """
@@ -76,10 +125,10 @@ class MongoConnection():
         prova = peers[0]
         return prova['peers']
 
-    def update_parts(self, md5, sessionID, str_part):
+    def update_parts(self, md5, sessionID, n_part):
         # TODO: funziona ma migliorabile
         """
-            modifica la stringa delle parti possedute del file di un peer
+            seleziono con md5 e sessionID la parte da modificare, poi cambio il bit con indice n_part
         """
         part = self.db.files.find_one({"md5": md5, "peers.session_id": sessionID})
         if part is not None:
@@ -91,9 +140,12 @@ class MongoConnection():
                 peer = self.db.files.find_one({'md5': "3md5", 'peers.session_id': "id1"},
                                               {'peers': {"$elemMatch": {'session_id': "id1"}}})
                 #db.getCollection('files').findOne({'md5' : "3md5", 'peers.session_id' : "id1"}, {"peers": {"$elemMatch": {"session_id": "id1"}}})
-                str_part_old = peer['session_id']
+                str_part_old = peer['part_list']
+                str_list = list(str_part_old)
+                str_list[n_part] = '1'
+                str_part = "".join(str_list)
 
-                self.db.files.update({"md5": md5, 'peers': {'$elemMatch': {'session_id':sessionID}}}, {"$set": {'peers.$.part_list': "str_part"}})
+                self.db.files.update({"md5": md5, 'peers': {'$elemMatch': {'session_id': sessionID}}}, {"$set": {'peers.$.part_list': str_part}})
                 # db.getCollection('files').update({"md5": "1md5", 'peers': {'$elemMatch' : {'session_id':"id1"}}},{"$set":{'peers.$.part_list': "aaaaaaaaaa"}})
                 print "update part_list non esistente"
             except Exception as e:
@@ -117,11 +169,12 @@ class MongoConnection():
             try:
                 #str_part ="\xff\xff\xff\xff"
                 str_part = chr(int("11111111", 2))
+                peer = self.db.sessions.find_one({"session_id": sessionID})
                 self.db.files.update({"md5": md5},
                                      {"$push": {"peers": [{"session_id": sessionID, "part_list": str_part}]}})
                 # self.db.files.update({"md5": md5}, {"$addToSet": {"peers": {"session_id": sessionID, "part_list": str_part}}})
-            except:
-                output(self.out_lck, "error insert file")
+            except Exception as e:
+                output(self.out_lck, "error insert file" + e.message)
             output(self.out_lck, "add peer")
         else:
             # insert
@@ -137,9 +190,9 @@ class MongoConnection():
                 # TODO: sistemare database peer
                 self.db.files.insert_one({"name": name, "md5": md5, "len_file": LenFile, "len_part": LenPart,
                                           'peers': [{'session_id': sessionID, 'ipv4': peer['ipv4'], 'ipv6': peer['ipv6'],
-                                                     'port': peer['port'],'part_list': str_part}]})
-            except:
-                print "error insert file"
+                                                     'port': peer['port'], 'part_list': str_part}]})
+            except Exception as e:
+                print "error insert file" + e.message
 
         '''
         peer = self.db.hitpeers.find_one({'md5': md5, 'session_id': sessionID})
