@@ -4,8 +4,9 @@ import math
 from SharedFile import SharedFile
 from helpers import connection
 from helpers.helpers import *
-import threading
+import threading, json
 from multiprocessing import Pool
+from DownloadingThreadPool import ThreadPool
 
 
 class Client(object):
@@ -50,7 +51,7 @@ class Client(object):
         # “LOGI”[4B].IPP2P[55B].PP2P[5B]
         output(self.out_lck, "Logging in...")
         msg = 'LOGI' + self.my_ipv4 + '|' + self.my_ipv6 + str(self.my_port).zfill(5)
-
+        print msg
         response_message = None
         try:
             self.tracker = None
@@ -133,8 +134,8 @@ class Client(object):
             self.session_id = None
 
             self.tracker.close()  # Chiusura della connessione
-            output(self.out_lck, 'Logout completed')
-            self.print_trigger.emit('Logout completed', '02')
+            output(self.out_lck, 'Logout denied')
+            self.print_trigger.emit('Logout denied', '02')
         else:
             output(self.out_lck, 'Error: unknown response from tracker.\n')
             self.print_trigger.emit('Error: unknown response from tracker.', '01')
@@ -550,63 +551,169 @@ class Client(object):
 
                     output(self.out_lck, "Part table updated, fetch succeeded.")
 
-                    #self.downlaod(file['md5'])
+
+                    # AVVIO IL THREAD DI GESTIONE DEL DOWNLOAD
+                    mainGet = threading.Thread(target=self.get_file, args=(file['md5'],))
+                    mainGet.start()
+                    output(self.out_lck, "Downloading file")
 
             else:
                 output(self.out_lck, 'No peers found.\n')
                 self.print_trigger.emit('No peers found.\n', '01')
-
         else:
             output(self.out_lck, 'Error: unknown response from tracker.\n')
             self.print_trigger.emit('Error: unknown response from tracker.', '01')
 
-    def downlaod(self, md5):
-        # IPP2P:RND <> IPP2P:PP2P
-        # > “RETP”[4B].Filemd5_i[32B].PartNum[8B]
-        # < “AREP”[4B].  # chunk[6B].{Lenchunk_i[5B].data[LB]}(i=1..#chunk)
+    def get_file(self, md5):
+        # recupero le parti eventualmente gia scaricate
+        part_file = open(self.path + "/" + md5 + ".json", "r+b")
+        downloaded_part = None
+        try:
+            downloaded_part = json.load(part_file)
+        except Exception as e:
+            self.print_trigger.emit('Error: ' + e.message, '01')
 
         parts_table = self.dbConnect.get_download(md5)
 
         if parts_table:
-            len_file = parts_table['len_file']
-            len_part = parts_table['len_part']
-
             parts = parts_table['parts']
 
-            if parts:
-                output(self.out_lck, "ok")
+            download_completed = False
 
-                # indice per scorrere la lista delle parti da scaricare (già ordinate in base alle occorrenze)
+            while not download_completed:
+                # POOL THREAD PER IL DOWNLOAD DELLE PARTI
+                # 1) Inizio il Thread pool con il numero desiderato di threads
+                pool = ThreadPool(5)
+
                 download_idx = 0
+                threads = 0
+                while threads < 5 or (len(parts) > download_idx):
 
-                #pool = Pool(5)
-                while self.dbConnect.downloading(md5):
-                    # Download in corso
-                    part = self.dbConnect.get_downloadable_part(md5, download_idx)
+                    if True:#not parts[download_idx]['downloaded']:
+                        # 2) Aggiungo it task in una coda
+                        pool.add_task(self.downlaod, md5, download_idx, part_file)
+                        threads += 1
+                    else:
+                        download_idx += 1
 
-                    selected_peer = random.choice(list(part['peers']))
+                # 3) Aspetto il completamento dei task
+                pool.wait_completion()
 
-                    output(self.out_lck, "Downloading part " + part['n'] + " from " + selected_peer['ipv4'])
-
-                    download_idx += 1
-
-            else:
-                output(self.out_lck, 'Error: no parts available.\n')
+                downloaded_part = json.load(part_file)
+                if len(parts) == len(downloaded_part['parts']):
+                    download_completed = True
 
 
         else:
             output(self.out_lck, 'Error: parts table not found.\n')
 
+        # FACCIO LA JOIN DEL FILE.json
 
-        # Terminato il download fermo la fetch
-        self.fetch_thread.stop()
 
-    def notify_tracker(self, file, PartNum):
+
+
+
+
+    def downlaod(self, md5, n_part, part_file):
+        # IPP2P:RND <> IPP2P:PP2P
+        # > “RETP”[4B].Filemd5_i[32B].PartNum[8B]
+        # < “AREP”[4B].  # chunk[6B].{Lenchunk_i[5B].data[LB]}(i=1..#chunk)
+
+        part = self.dbConnect.get_downloadable_part(md5, n_part)
+        selected_peer = random.choice(list(part['peers']))
+
+        c = connection.Connection(selected_peer['ipv4'], selected_peer['ipv6'], selected_peer['port'], self.print_trigger,
+                                  "0")  # Inizializzazione della connessione verso il peer
+
+        c.connect()
+        download = c.socket
+
+        output(self.out_lck, "Downloading part " + str(n_part) + " from " + selected_peer['ipv4'])
+
+        msg = "RETR" + md5 + str(n_part).zfill(8)
+
+        response_message = None
+        try:
+            self.check_connection()
+
+            self.tracker.send(msg)
+            self.print_trigger.emit('=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' +
+                                    md5 + '  ' + msg[36:], "00")
+
+            # Spazio
+            self.print_trigger.emit("", "00")
+
+            response_message = self.tracker.recv(4)
+            self.print_trigger.emit('<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4], '02')
+
+        except socket.error, msg:
+            self.print_trigger.emit('Socket Error: ' + str(msg), '01')
+
+        except Exception as e:
+            self.print_trigger.emit('Error: ' + e.message, '01')
+
+        else:
+            if response_message[:4] == 'ARET':
+                n_chunks = response_message[4:10]  # Numero di parti del file da scaricare
+                n_chunks = int(str(n_chunks).lstrip('0'))  # Rimozione gli 0 dal numero di parti e converte in intero
+
+                for i in range(0, n_chunks):
+                    if i == 0:
+                        output(self.out_lck, 'Download started...')
+                        # self.print_trigger.emit('Download started...', '00')
+
+                     #update_progress(self.out_lck, i, n_chunks,
+                     #                'Downloading ' + fout.name)  # Stampa a video del progresso del download
+
+                    try:
+                        chunk_length = recvall(download, 5)  # Ricezione dal peer la lunghezza della parte di file
+                        data = recvall(download, int(chunk_length))  # Ricezione dal peer la parte del file
+
+                        self.out_lock.acquire()  # si bloccherà se il lock è già occupato
+                        # inserisco la parte scaricata nel oggetto json del file corrispondente
+                        downloaded_part = json.load(part_file)
+                        if downloaded_part:
+                            downloaded_part['parts'].append({n_part: data})
+                        else:
+                            downloaded_part = {
+                                'parts': [{
+                                    n_part: data
+                                }]
+                            }
+
+                        json.dump(downloaded_part, part_file, indent=4)
+
+                        self.out_lock.release()
+
+                        # set downloaded == True per la part nel DB
+                        # self.dbConnect.set_downloaded_part(md5, n_part)
+                        # notify_tracker(md5, n_part)
+
+
+                    except socket.error as e:
+                        # output(self.out_lck, 'Socket Error: ' + e.message)
+                        self.print_trigger.emit('Socket Error: ' + e.message, '01')
+                        break
+                    except IOError as e:
+                        # output(self.out_lck, 'IOError: ' + e.message)
+                        self.print_trigger.emit('IOError: ' + e.message, '01')
+                        break
+                    except Exception as e:
+                        # output(self.out_lck, 'Error: ' + e.message)
+                        self.print_trigger.emit('Error: ' + e.message, '01')
+                        break
+
+                output(self.out_lck, '\nDownload completed')
+
+            else:
+                output(self.out_lck, 'Error: unknown response from directory.\n')
+
+    def notify_tracker(self, md5, n_part):
         #IPP2P:RND <> IPT:3000
         #> “RPAD”[4B].SessionID[16B].Filemd5_i[32B].PartNum[8B]
         #< “APAD”[4B].  # Part[8B]
 
-        msg = "RPAD" + self.session_id + file['md5'] + PartNum
+        msg = "RPAD" + self.session_id + file['md5'] + n_part
         response_message = None
 
         try:
@@ -614,7 +721,7 @@ class Client(object):
 
             self.tracker.sendall(msg)
             self.print_trigger.emit('=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' +
-                                    self.session_id + '  ' + file['md5'] + PartNum, "00")
+                                    self.session_id + '  ' + file['md5'] + n_part, "00")
 
             # Spazio
             self.print_trigger.emit("", "00")
