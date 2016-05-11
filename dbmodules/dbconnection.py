@@ -1,8 +1,7 @@
-import itertools
-import collections
 # coding=utf-8
 import datetime
 import re
+import math
 import sys
 from pymongo import MongoClient
 from helpers.helpers import *
@@ -60,10 +59,9 @@ class MongoConnection():
                 output(self.out_lck, "insert_session: " + e.message)
                 return "0000000000000000"
 
-    # TODO: da finire
     def remove_session(self, sessionID):
 
-        output = None
+        source = self.get_session(sessionID)
         files = self.db.files.find({'peers.session_id': sessionID})
         if files is None:
             return True
@@ -73,43 +71,32 @@ class MongoConnection():
                 index2 = lista_file[i]
                 print index2['name']
                 index_peer = index2['peers']
-                n_parts = int(index2['len_file']) / int(index2['len_part'])
+                n_parts = int(math.ceil(float(index2['len_file']) / float(index2['len_part'])))
                 parts = []
                 for j in range(0, n_parts):  # ciclo paerti del file
                     is_available = False
-
-                    # prova
-                    interetor = range(0, len(index_peer)).__iter__()
-
-                    # for peer in range(len(index_peer)):     # ciclo numero di peer
-                    for peer in interetor:
-                        if index_peer[peer]['ipv4'] == '172.030.008.002':
-                            # self.consume(interetor)
-                            peer = peer + 1
+                    for peer in range(len(index_peer)):     # ciclo numero di peer
+                        if index_peer[peer]['ipv4'] == source['ipv4']:
+                            pass
                         else:
                             if index_peer[peer]['part_list'][j] == '1':
-                                print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + str(j)
+                                print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + " " + str(j)
                                 is_available = True
                                 break
                             else:
-                                print " "
+                                print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + " " + str(j)
                                 is_available = False
-                                # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4']
-
                     if is_available:
                         parts.append('1')  # parte presente
                     else:
                         parts.append('0')
                 if '0' in parts:
-                    print "male"
+                    print "parti mancanti"
                     return False
                 else:
                     return True
                     break
             return True
-
-    def consume(self, interetor):
-        collections.deque(itertools.islice(interetor, 1))
 
     def get_parts(self, md5):
         """
@@ -255,6 +242,52 @@ class MongoConnection():
         return completed
 
     def get_downloadable_part(self, md5, idx):
-        cursor = self.db.download.find({"md5": md5},{"parts": {"$elemMatch": {"n": idx}}})
+        cursor = self.db.download.find({"md5": md5}, {"parts": {"$elemMatch": {"n": idx}}})
         part = cursor[0]
         return part
+
+    # partdown
+    def get_number_partdown(self, sessionID):
+
+        tot = 0
+        source = self.db.sessions.find_one({'session_id': sessionID})
+        files = self.db.files.find({'peers.session_id': sessionID})
+        if files is None:
+            return 0
+        else:
+            lista_file = list(files)
+            for i in range(len(lista_file)):  # ciclo numero di file
+                index2 = lista_file[i]
+                print index2['name']
+                index_peer = index2['peers']
+                n_parts = int(math.ceil(float(index2['len_file']) / float(index2['len_part'])))
+                source_parts = self.db.files.find({'md5': index2['md5']},
+                                                  {'peers': {"$elemMatch": {"session_id": sessionID}},
+                                                   'peers.part_list': 1, '_id': 0})
+                source_bit = list(source_parts)[0]['peers'][0]['part_list']
+                parts = []
+                for j in range(0, len(source_bit)):  # ciclo paerti del file
+                    is_available = False
+                    if source_bit[j] == '1':
+                        for peer in range(len(index_peer)):  # ciclo numero di peer
+                            if index_peer[peer]['ipv4'] == source['ipv4']:
+                                pass
+                            else:
+                                if index_peer[peer]['part_list'][j] == '1':
+                                    print index_peer[peer]['part_list'][j] + " : " + index_peer[peer][
+                                        'ipv4'] + " indice: " + str(j)
+                                    is_available = True
+                                    break
+                                else:
+                                    print index_peer[peer]['part_list'][j] + " : " + index_peer[peer][
+                                        'ipv4'] + " indicie: " + str(j)
+                                    is_available = False
+                        if is_available:
+                            parts.append('1')  # parte presente
+                        else:
+                            parts.append('0')
+                    else:
+                        pass
+                tot += parts.count('1')
+            return tot
+
