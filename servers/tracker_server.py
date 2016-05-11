@@ -33,7 +33,7 @@ class Tracker_Server(threading.Thread):
 
     def run(self):
         conn = self.client
-        cmd = conn.recvall(self.size)
+        cmd = recvall(conn, self.size)
 
         while len(cmd) > 0:
 
@@ -295,6 +295,6 @@ class Tracker_Server(threading.Thread):
                 self.print_trigger.emit("", "10")
 
             else:
-                self.print_trigger.emit("\n Command not recognized", "11")
+                self.print_trigger.emit("\nError: Command" + cmd + " not recognized", '11')
 
-            cmd = conn.recvall(self.size)
+            cmd = recvall(conn, self.size)

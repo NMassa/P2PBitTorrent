@@ -68,7 +68,7 @@ class Client(object):
             # Spazio
             self.print_trigger.emit("", "00")
 
-            response_message = self.tracker.recvall(20)  # Risposta della directory, deve contenere ALGI e il session id
+            response_message = recvall(self.tracker, 20)  # Risposta della directory, deve contenere ALGI e il session id
             self.print_trigger.emit(
                 '<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4] + '  ' + response_message[4:20],
                 '02')
@@ -111,7 +111,7 @@ class Client(object):
             # Spazio
             self.print_trigger.emit("", "00")
 
-            response_message = self.tracker.recvall(7)
+            response_message = recvall(self.tracker, 7)
             # Risposta della directory, deve contenere ALGO e il numero di file che erano stati condivisi
             self.print_trigger.emit(
                 '<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4] + '  ' + response_message[4:7],
@@ -239,7 +239,7 @@ class Client(object):
                 # Spazio
                 self.print_trigger.emit("", "00")
 
-                response_message = self.tracker.recvall(4)
+                response_message = recvall(self.tracker, 4)
 
                 self.print_trigger.emit(
                     '<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4],
@@ -257,7 +257,7 @@ class Client(object):
 
                 idmd5 = None
                 try:
-                    idmd5 = self.tracker.recvall(3)  # Numero di identificativi md5
+                    idmd5 = recvall(self.tracker, 3)  # Numero di identificativi md5
                 except socket.error as e:
                     print 'Socket Error: ' + e.message
                 except Exception as e:
@@ -280,11 +280,11 @@ class Client(object):
                                 for idx in range(0, idmd5):  # Per ogni identificativo diverso si ricevono:
                                     # md5, nome del file, numero di copie, elenco dei peer che l'hanno condiviso
 
-                                    file_i_md5 = self.tracker.recvall(32)  # md5 dell'i-esimo file (32 caratteri)
-                                    file_i_name = self.tracker.recvall(
+                                    file_i_md5 = recvall(self.tracker, 32)  # md5 dell'i-esimo file (32 caratteri)
+                                    file_i_name = recvall(self.tracker,
                                         100).strip()  # nome dell'i-esimo file (100 caratteri compresi spazi)
-                                    len_file_i = self.tracker.recvall(10)
-                                    len_part_i = self.tracker.recvall(6)
+                                    len_file_i = recvall(self.tracker, 10)
+                                    len_part_i = recvall(self.tracker, 6)
 
                                     available_files.append({"name": file_i_name,
                                                             "md5": file_i_md5,
@@ -366,7 +366,7 @@ class Client(object):
             # Spazio
             self.print_trigger.emit("", "00")
 
-            response_message = self.tracker.recvall(4)
+            response_message = recvall(self.tracker, 4)
             self.print_trigger.emit('<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4], '02')
 
         except socket.error, msg:
@@ -379,7 +379,7 @@ class Client(object):
             output(self.out_lck, 'No response from tracker. Fetch failed')
         elif response_message[0:4] == 'AFCH':
 
-            n_hitpeers = int(self.tracker.recvall(3))
+            n_hitpeers = int(recvall(self.tracker, 3))
 
             if n_hitpeers is not None and n_hitpeers > 0:
 
@@ -388,13 +388,13 @@ class Client(object):
                 output(self.out_lck, "hitpeers")
 
                 for i in range(0, n_hitpeers):
-                    hitpeer_ipv4 = self.tracker.recvall(16).replace("|", "")
+                    hitpeer_ipv4 = recvall(self.tracker, 16).replace("|", "")
                     #output(self.out_lck, hitpeer_ipv4)
-                    hitpeer_ipv6 = self.tracker.recvall(39)
+                    hitpeer_ipv6 = recvall(self.tracker, 39)
                     #output(self.out_lck, hitpeer_ipv6)
-                    hitpeer_port = self.tracker.recvall(5)
+                    hitpeer_port = recvall(self.tracker, 5)
                     #output(self.out_lck, hitpeer_port)
-                    hitpeer_partlist = self.tracker.recvall(n_parts8)
+                    hitpeer_partlist = recvall(self.tracker, n_parts8)
                     #output(self.out_lck, hitpeer_partlist)
 
                     hitpeers.append({
@@ -637,14 +637,14 @@ class Client(object):
         try:
             self.check_connection()
 
-            self.tracker.send(msg)
+            download.send(msg)
             self.print_trigger.emit('=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' +
                                     md5 + '  ' + msg[36:], "00")
 
             # Spazio
             self.print_trigger.emit("", "00")
 
-            response_message = self.tracker.recvall(4)
+            response_message = recvall(download, 4)
             self.print_trigger.emit('<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4], '02')
 
         except socket.error, msg:
@@ -727,7 +727,7 @@ class Client(object):
             # Spazio
             self.print_trigger.emit("", "00")
 
-            response_message = self.tracker.recvall(4)
+            response_message = recvall(self.tracker, 4)
             self.print_trigger.emit('<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4], '02')
 
         except socket.error, msg:
@@ -740,7 +740,7 @@ class Client(object):
             output(self.out_lck, 'No response from tracker. download failed')
         elif response_message[0:4] == 'RPAD':
 
-            num_part = int(self.tracker.recvall(8))
+            num_part = int(recvall(self.tracker, 8))
 
             output(self.out_lck, "Part download, download succeeded.")
 

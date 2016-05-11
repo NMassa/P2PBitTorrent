@@ -218,6 +218,10 @@ class MongoConnection():
             files = self.db.files.find({"name": {"$regex": regexp}})
         return files
 
+    def get_file(self, md5):
+        file = self.db.files.find_one({"md5": md5})
+        return file
+
     def get_download(self, md5):
         download = self.db.download.find_one({"md5": md5})
         return download
