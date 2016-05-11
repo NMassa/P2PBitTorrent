@@ -4,7 +4,7 @@ import math
 from SharedFile import SharedFile
 from helpers import connection
 from helpers.helpers import *
-import threading, json
+import threading, json, collections
 from multiprocessing import Pool
 from DownloadingThreadPool import ThreadPool
 
@@ -553,7 +553,7 @@ class Client(object):
 
 
                     # AVVIO IL THREAD DI GESTIONE DEL DOWNLOAD
-                    mainGet = threading.Thread(target=self.get_file, args=(file['md5'],))
+                    mainGet = threading.Thread(target=self.get_file, args=(file['md5'], file['name']))
                     mainGet.start()
                     output(self.out_lck, "Downloading file")
 
@@ -564,12 +564,12 @@ class Client(object):
             output(self.out_lck, 'Error: unknown response from tracker.\n')
             self.print_trigger.emit('Error: unknown response from tracker.', '01')
 
-    def get_file(self, md5):
+    def get_file(self, md5, file_name):
         # recupero le parti eventualmente gia scaricate
         part_file = open(self.path + "/" + md5 + ".json", "r+b")
-        downloaded_part = None
+        downloaded_parts = {}
         try:
-            downloaded_part = json.load(part_file)
+            downloaded_parts = json.load(part_file)
         except Exception as e:
             self.print_trigger.emit('Error: ' + e.message, '01')
 
@@ -599,19 +599,28 @@ class Client(object):
                 # 3) Aspetto il completamento dei task
                 pool.wait_completion()
 
-                downloaded_part = json.load(part_file)
-                if len(parts) == len(downloaded_part['parts']):
+                downloaded_parts = json.load(part_file)
+
+                if len(parts) == len(downloaded_parts):
                     download_completed = True
 
 
         else:
             output(self.out_lck, 'Error: parts table not found.\n')
 
-        # FACCIO LA JOIN DEL FILE.json
+        # FACCIO LA JOIN DELLE PARTI DAL FILE.json
 
+        try:
+            all_file = json.load(part_file)
+            order_all_file = collections.OrderedDict(sorted(all_file.items()))
 
+            file = open(self.path + "/" + file_name, "r+b")
+            for key, value in order_all_file.iteritems():
+                file.write(value)
 
-
+            file.close()
+        except Exception as e:
+            self.print_trigger.emit('Error: ' + e.message, '01')
 
 
     def downlaod(self, md5, n_part, part_file):
@@ -656,7 +665,7 @@ class Client(object):
             if response_message[:4] == 'ARET':
                 n_chunks = response_message[4:10]  # Numero di parti del file da scaricare
                 n_chunks = int(str(n_chunks).lstrip('0'))  # Rimozione gli 0 dal numero di parti e converte in intero
-
+                data = ''
                 for i in range(0, n_chunks):
                     if i == 0:
                         output(self.out_lck, 'Download started...')
@@ -667,28 +676,7 @@ class Client(object):
 
                     try:
                         chunk_length = recvall(download, 5)  # Ricezione dal peer la lunghezza della parte di file
-                        data = recvall(download, int(chunk_length))  # Ricezione dal peer la parte del file
-
-                        self.out_lock.acquire()  # si bloccherà se il lock è già occupato
-                        # inserisco la parte scaricata nel oggetto json del file corrispondente
-                        downloaded_part = json.load(part_file)
-                        if downloaded_part:
-                            downloaded_part['parts'].append({n_part: data})
-                        else:
-                            downloaded_part = {
-                                'parts': [{
-                                    n_part: data
-                                }]
-                            }
-
-                        json.dump(downloaded_part, part_file, indent=4)
-
-                        self.out_lock.release()
-
-                        # set downloaded == True per la part nel DB
-                        # self.dbConnect.set_downloaded_part(md5, n_part)
-                        # notify_tracker(md5, n_part)
-
+                        data += recvall(download, int(chunk_length))  # Ricezione dal peer la parte del file
 
                     except socket.error as e:
                         # output(self.out_lck, 'Socket Error: ' + e.message)
@@ -705,8 +693,26 @@ class Client(object):
 
                 output(self.out_lck, '\nDownload completed')
 
+                self.out_lock.acquire()  # si bloccherà se il lock è già occupato
+                # inserisco la parte scaricata nel oggetto json del file corrispondente
+                downloaded_part = json.load(part_file)
+                if downloaded_part:
+                    downloaded_part[n_part] = data
+                else:
+                    downloaded_part = { n_part: data }
+
+                json.dump(downloaded_part, part_file, indent=4)
+
+                self.out_lock.release()
+
             else:
                 output(self.out_lck, 'Error: unknown response from directory.\n')
+
+
+
+            # set downloaded == True per la part nel DB
+            # self.dbConnect.set_downloaded_part(md5, n_part)
+            # notify_tracker(md5, n_part)
 
     def notify_tracker(self, md5, n_part):
         #IPP2P:RND <> IPT:3000
@@ -743,7 +749,6 @@ class Client(object):
 
             output(self.out_lck, "Part download, download succeeded.")
 
-        print "notify tracker"
 
     '''
         Helper methods
