@@ -31,7 +31,7 @@ class Peer_Server(threading.Thread):
 
     def run(self):
         conn = self.client
-        cmd = conn.recv(self.size)
+        cmd = conn.recvall(self.size)
         while len(cmd) > 0:
             if cmd[:4] == 'RETP':
                 #IPP2P:RND <> IPP2P:PP2P
@@ -43,4 +43,4 @@ class Peer_Server(threading.Thread):
             else:
                 self.print_trigger.emit("Command not recognized", 11)
 
-            cmd = conn.recv(self.size)
+            cmd = conn.recvall(self.size)

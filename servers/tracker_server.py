@@ -33,7 +33,7 @@ class Tracker_Server(threading.Thread):
 
     def run(self):
         conn = self.client
-        cmd = conn.recv(self.size)
+        cmd = conn.recvall(self.size)
 
         while len(cmd) > 0:
 
@@ -142,18 +142,12 @@ class Tracker_Server(threading.Thread):
                 # IPP2P:RND <> IPT:3000
                 # > “LOOK”[4B].SessionID[16B].Ricerca[20B]
                 # < “ALOO”[4B].  # idmd5[3B].{Filemd5_i[32B].Filename_i[100B].LenFile[10B].LenPart[6B]}(i = 1..  # idmd5)
-
-                print "look"
-
-                print "received command: " + cmd[:4]
-                sessionId = cmd[4:20]
-                print "received sessionID: " + str(sessionId)
+                session_id = cmd[4:20]
                 term = cmd[20:40]
-                print "received search term: " + str(term)
 
+                self.print_trigger.emit(
+                    "<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + session_id + "  " + term + "  ", "10")
 
-                #  Finta risposta dal tracker
-                #  Number of different md5
                 idmd5 = self.dbConnect.get_files(term)
                 idmd5_count = str(idmd5.count()).zfill(3)
 
@@ -181,14 +175,10 @@ class Tracker_Server(threading.Thread):
                 try:
                     conn.sendall(response)
 
-                except socket.error, msg:
-                    self.print_trigger.emit('Socket Error: ' + str(response), '11')
+                except socket.error as msg:
+                    self.print_trigger.emit('Socket Error: ' + str(msg), '11')
                 except Exception as e:
                     self.print_trigger.emit('Error: ' + e.message, '11')
-
-                self.print_trigger.emit("File search shared by " + str(term), "12")
-                # Spazio
-                self.print_trigger.emit("", "10")
 
             elif cmd[:4] == 'FCHU':
                 #IPP2P:RND <> IPT:3000
@@ -276,7 +266,6 @@ class Tracker_Server(threading.Thread):
                 except Exception as e:
                     self.print_trigger.emit('Error: ' + e.message, '11')
 
-
             elif cmd[:4] == 'RPAD':
                 # IPP2P:RND <> IPT:3000
                 # > “RPAD”[4B].SessionID[16B].Filemd5_i[32B].PartNum[8B]
@@ -285,7 +274,6 @@ class Tracker_Server(threading.Thread):
                 session_id = cmd[4:20]
                 md5 = cmd[20:52]
                 num_part = cmd[52:60]
-                print "received command: " + cmd[:4]
 
                 self.print_trigger.emit(
                     "<= " + str(self.address[0]) + "  " + session_id + "  " + md5 + "  " + num_part, "10")
@@ -302,13 +290,11 @@ class Tracker_Server(threading.Thread):
                 except Exception as e:
                     self.print_trigger.emit('Error: ' + e.message, '11')
 
-                self.print_trigger.emit("File succesfully downloaded by " + str(self.address[0]), "12")
+                self.print_trigger.emit("Part " + str(num_part) + " succesfully downloaded by " + str(self.address[0]), "12")
                 # Spazio
                 self.print_trigger.emit("", "10")
-
-                print "download notify"
 
             else:
                 self.print_trigger.emit("\n Command not recognized", "11")
 
-            cmd = conn.recv(self.size)
+            cmd = conn.recvall(self.size)
