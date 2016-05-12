@@ -68,7 +68,10 @@ class Ui_MainWindow(QtGui.QMainWindow):
         item = self.tableWidget.horizontalHeaderItem(2)
         item.setText(_translate("MainWindow", "Progress", None))
 
-    def add_progress(self, part_n, source, progress):
+    def update_progress(self, part_n, source, progress, file_name):
+
+        self.label.setText(_translate("MainWindow", "Donwloading file " + file_name, None))
+
         part_doesnt_exists = True
 
         allRows = self.tableWidget.rowCount()

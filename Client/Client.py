@@ -17,7 +17,7 @@ class Client(object):
     path = "./fileCondivisi"
     tracker = None
 
-    def __init__(self, my_ipv4, my_ipv6, my_port, track_ipv4, track_ipv6, track_port, database, out_lck, print_trigger):
+    def __init__(self, my_ipv4, my_ipv6, my_port, track_ipv4, track_ipv6, track_port, database, out_lck, print_trigger, download_trigger):
         """
             Costruttore della classe Peer
         """
@@ -33,6 +33,7 @@ class Client(object):
         self.json_lck = threading.Lock()
         #self.procedure_lck = threading.Lock()
         self.print_trigger = print_trigger
+        self.download_trigger = download_trigger
         self.fetch_thread = None
         self.fetching = False
 
@@ -552,7 +553,7 @@ class Client(object):
 
                     if True:#not parts[download_idx]['downloaded']:
                         # 2) Aggiungo it task in una coda
-                        pool.add_task(self.downlaod, md5, download_idx, part_file)
+                        pool.add_task(self.downlaod, md5, download_idx, part_file, file_name)
                         threads += 1
                     else:
                         download_idx += 1
@@ -583,7 +584,7 @@ class Client(object):
             self.print_trigger.emit('Error: ' + e.message, '01')
 
 
-    def downlaod(self, md5, n_part, part_file):
+    def downlaod(self, md5, n_part, part_file, file_name):
         # IPP2P:RND <> IPP2P:PP2P
         # > “RETP”[4B].Filemd5_i[32B].PartNum[8B]
         # < “AREP”[4B].  # chunk[6B].{Lenchunk_i[5B].data[LB]}(i=1..#chunk)
@@ -610,14 +611,14 @@ class Client(object):
             self.check_connection()
 
             download.send(msg)
-            self.print_trigger.emit('=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' +
+            self.print_trigger.emit('=> ' + str(download.getpeername()[0]) + '  ' + msg[0:4] + '  ' +
                                     md5 + '  ' + msg[36:], "00")
 
             # Spazio
             self.print_trigger.emit("", "00")
 
             response_message = recvall(download, 4)
-            self.print_trigger.emit('<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4], '02')
+            self.print_trigger.emit('<= ' + str(download.getpeername()[0]) + '  ' + response_message[0:4], '02')
 
         except socket.error, msg:
             self.print_trigger.emit('Socket Error: ' + str(msg), '01')
@@ -641,6 +642,10 @@ class Client(object):
                     try:
                         chunk_length = recvall(download, 5)  # Ricezione dal peer la lunghezza della parte di file
                         data += recvall(download, int(chunk_length))  # Ricezione dal peer la parte del file
+
+                        #updating progress bar
+                        progress = round(float(i) / float(n_chunks), 0)
+                        self.download_trigger.emit(n_part, str(download.getpeername()[0]), progress, file_name)
 
                     except socket.error as e:
                         # output(self.out_lck, 'Socket Error: ' + e.message)
