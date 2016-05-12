@@ -636,9 +636,6 @@ class Client(object):
                         output(self.out_lck, 'Download started...')
                         # self.print_trigger.emit('Download started...', '00')
 
-                     #update_progress(self.out_lck, i, n_chunks,
-                     #                'Downloading ' + fout.name)  # Stampa a video del progresso del download
-
                     try:
                         chunk_length = recvall(download, 5)  # Ricezione dal peer la lunghezza della parte di file
                         data += recvall(download, int(chunk_length))  # Ricezione dal peer la parte del file
