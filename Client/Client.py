@@ -49,7 +49,7 @@ class Client(object):
         #> “LOGI”[4B].IPP2P[55B].PP2P[5B]
         #< “ALGI”[4B].SessionID[16B]
 
-        #self.procedure_lck.acquire()
+        self.procedure_lck.acquire()
 
         # “LOGI”[4B].IPP2P[55B].PP2P[5B]
         output(self.out_lck, "Logging in...")
@@ -83,7 +83,7 @@ class Client(object):
 
         if response_message is None:
             output(self.out_lck, 'No response from tracker. Login failed')
-            #self.procedure_lck.release()
+            self.procedure_lck.releasee()
         else:
             self.session_id = response_message[4:20]
             if self.session_id == '0000000000000000' or self.session_id == '':
@@ -92,7 +92,7 @@ class Client(object):
                 output(self.out_lck, 'Session ID assigned by the directory: ' + self.session_id)
                 output(self.out_lck, 'Login completed')
                 self.print_trigger.emit('Login completed', '02')
-            #self.procedure_lck.release()
+            self.procedure_lck.releasee()
 
     def logout(self):
         #IPP2P:RND <> IPT:3000
@@ -100,7 +100,7 @@ class Client(object):
         #1 < “NLOG”[4B].  # partdown[10B]
         #2 < “ALOG”[4B].  # partown[10B]
 
-        #self.procedure_lck.acquire()
+        self.procedure_lck.acquire()
 
         output(self.out_lck, 'Logging out...')
         msg = 'LOGO' + self.session_id
@@ -129,7 +129,7 @@ class Client(object):
 
         if response_message is None:
             output(self.out_lck, 'No response from tracker. Login failed')
-            #self.procedure_lck.release()
+            self.procedure_lck.releasee()
         elif response_message[0:4] == 'ALOG':
             self.session_id = None
 
@@ -137,7 +137,7 @@ class Client(object):
             output(self.out_lck, 'Logout completed')
             self.print_trigger.emit('Logout completed', '02')
 
-            #self.procedure_lck.release()
+            self.procedure_lck.releasee()
         elif response_message[0:4] == "NLOG":
             self.session_id = None
 
@@ -145,18 +145,18 @@ class Client(object):
             output(self.out_lck, 'Logout denied')
             self.print_trigger.emit('Logout denied', '02')
 
-            #self.procedure_lck.release()
+            self.procedure_lck.releasee()
         else:
             output(self.out_lck, 'Error: unknown response from tracker.\n')
             self.print_trigger.emit('Error: unknown response from tracker.', '01')
-            #self.procedure_lck.release()
+            self.procedure_lck.releasee()
 
     def share(self):
         # IPP2P:RND <> IPT:3000
         # > “ADDR”[4B].SessionID[16B].LenFile[10B].LenPart[6B].Filename[100B].Filemd5_i[32B]
         # < “AADR”[4B].  # part[8B]
 
-        #self.procedure_lck.acquire()
+        self.procedure_lck.acquire()
 
         found = False
         while not found:
@@ -223,14 +223,14 @@ class Client(object):
                     if not found:
                         output(self.out_lck, 'Option not available')
 
-        #self.procedure_lck.release()
+        self.procedure_lck.releasee()
 
     def look(self):
         #IPP2P:RND <> IPT:3000
         #> “LOOK”[4B].SessionID[16B].Ricerca[20B]
         #< “ALOO”[4B].  # idmd5[3B].{Filemd5_i[32B].Filename_i[100B].LenFile[10B].LenPart[6B]}(i = 1..  # idmd5)
 
-        #self.procedure_lck.acquire()
+        self.procedure_lck.acquire()
 
         output(self.out_lck, 'Insert search term:')
         ricerca = None
@@ -273,7 +273,7 @@ class Client(object):
 
         if response_message is None:
             output(self.out_lck, 'No response from tracker. Look failed')
-            #self.procedure_lck.release()
+            self.procedure_lck.releasee()
         elif response_message[0:4] == 'ALOO':
 
             idmd5 = None
@@ -287,7 +287,7 @@ class Client(object):
 
             if idmd5 is None:
                 output(self.out_lck, 'idmd5 is blank.')
-                #self.procedure_lck.release()
+                self.procedure_lck.releasee()
             else:
                 try:
                     idmd5 = int(idmd5)
@@ -296,7 +296,7 @@ class Client(object):
                 else:
                     if idmd5 == 0:
                         output(self.out_lck, "No results found for search term: " + ricerca)
-                        #self.procedure_lck.release()
+                        self.procedure_lck.releasee()
                     elif idmd5 > 0:  # At least one result
                         available_files = []
 
@@ -323,7 +323,7 @@ class Client(object):
 
                         if len(available_files) == 0:
                             output(self.out_lck, "No results found for search term: " + ricerca)
-                            #self.procedure_lck.release()
+                            self.procedure_lck.releasee()
                         else:
                             output(self.out_lck, "Select a file to download ('c' to cancel): ")
                             for idx, file in enumerate(available_files):  # visualizza i risultati della ricerca
@@ -339,7 +339,7 @@ class Client(object):
                                 if option is None:
                                     output(self.out_lck, 'Please select an option')
                                 elif option == 'c':
-                                    #self.procedure_lck.release()
+                                    self.procedure_lck.releasee()
                                     return
                                 else:
                                     try:
@@ -351,7 +351,7 @@ class Client(object):
                                 selected_file]  # Recupero del file selezionato dalla lista dei risultati
 
 
-                            #self.procedure_lck.release()
+                            self.procedure_lck.releasee()
 
                             # Avvio un thread che esegue la fetch ogni 60(10) sec
                             #self.fetch_thread = threading.Timer(10, self.fetch(file_to_download))
@@ -367,7 +367,7 @@ class Client(object):
         else:
             output(self.out_lck, 'Error: unknown response from tracker.\n')
             self.print_trigger.emit('Error: unknown response from tracker.', '01')
-            #self.procedure_lck.release()
+            self.procedure_lck.releasee()
 
     def fetch(self, file):
         # IPP2P:RND <> IPT:3000
@@ -375,7 +375,7 @@ class Client(object):
         # < “AFCH”[4B].#hitpeer[3B].{IPP2P_i[55B].PP2P_i[5B].PartList_i[#part8]}(i = 1..# hitpeer)
 
         self.fetching = True
-        #self.procedure_lck.acquire()
+        self.procedure_lck.acquire()
 
         n_parts = int(math.ceil(float(file['len_file']) / float(file['len_part'])))  # 1024
 
@@ -406,7 +406,7 @@ class Client(object):
 
         if response_message is None:
             output(self.out_lck, 'No response from tracker. Fetch failed')
-            #self.procedure_lck.release()
+            self.procedure_lck.releasee()
             self.fetching = False
         elif response_message[0:4] == 'AFCH':
 
@@ -508,18 +508,18 @@ class Client(object):
 
                     output(self.out_lck, "Part table updated, fetch succeeded.")
                     self.fetching = False
-                    #self.procedure_lck.release()
+                    self.procedure_lck.releasee()
 
             else:
                 output(self.out_lck, 'No peers found.\n')
                 self.print_trigger.emit('No peers found.\n', '01')
                 self.fetching = False
-                #self.procedure_lck.release()
+                self.procedure_lck.releasee()
         else:
             output(self.out_lck, 'Error: unknown response from tracker.\n')
             self.print_trigger.emit('Error: unknown response from tracker.', '01')
             self.fetching = False
-            #self.procedure_lck.release()
+            self.procedure_lck.releasee()
 
     def get_file(self, md5, file_name):
 
@@ -685,9 +685,9 @@ class Client(object):
         #> “RPAD”[4B].SessionID[16B].Filemd5_i[32B].PartNum[8B]
         #< “APAD”[4B].  # Part[8B]
 
-        #self.procedure_lck.acquire()
+        self.procedure_lck.acquire()
 
-        msg = "RPAD" + self.session_id + file['md5'] + n_part
+        msg = "RPAD" + self.session_id + md5 + n_part
         response_message = None
 
         try:
@@ -695,7 +695,7 @@ class Client(object):
 
             self.tracker.sendall(msg)
             self.print_trigger.emit('=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' +
-                                    self.session_id + '  ' + file['md5'] + n_part, "00")
+                                    self.session_id + '  ' + md5 + n_part, "00")
 
             # Spazio
             self.print_trigger.emit("", "00")
@@ -711,16 +711,16 @@ class Client(object):
 
         if response_message is None:
             output(self.out_lck, 'No response from tracker. Download failed')
-            #self.procedure_lck.release()
+            self.procedure_lck.releasee()
         elif response_message[0:4] == 'RPAD':
 
             num_part = int(recvall(self.tracker, 8))
 
-            output(self.out_lck, "Part download, download succeeded.")
-            #self.procedure_lck.release()
+            output(self.out_lck, "Part "+ str(num_part) + " successfully downloaded.")
+            self.procedure_lck.releasee()
         else:
             output(self.out_lck, "Unknown response from tracker. Download failed")
-            #self.procedure_lck.release()
+            self.procedure_lck.releasee()
 
     '''
         Helper methods
