@@ -175,15 +175,6 @@ class Tracker_Server(threading.Thread):
                     except Exception as e:
                         self.print_trigger.emit('Error: ' + e.message, '11')
 
-
-                    try:
-                        conn.sendall(response)
-
-                    except socket.error as msg:
-                        self.print_trigger.emit('Socket Error: ' + str(msg), '11')
-                    except Exception as e:
-                        self.print_trigger.emit('Error: ' + e.message, '11')
-
                 elif cmd[:4] == 'FCHU':
                     #IPP2P:RND <> IPT:3000
                     #> “FCHU”[4B].SessionID[16B].Filemd5_i[32B]
