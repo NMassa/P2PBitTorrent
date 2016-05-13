@@ -127,12 +127,12 @@ if __name__ == "__main__":
     mainwindow = main_window.Ui_MainWindow()
     mainwindow.show()
 
-    download_window = download.Ui_MainWindow()
-    download_window.show()
+    # download_window = download.Ui_MainWindow()
+    # download_window.show()
 
     main = Main()
     main.print_trigger.connect(mainwindow.print_on_main_panel)
-    main.download_trigger.connect(download_window.update_progress)
+    main.download_trigger.connect(mainwindow.update_progress)
     main.start()
 
     sys.exit(app.exec_())
