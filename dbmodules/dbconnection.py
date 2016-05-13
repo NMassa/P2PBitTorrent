@@ -8,7 +8,6 @@ from helpers.helpers import *
 import math
 import threading
 
-
 class MongoConnection():
     def __init__(self, out_lck, host="localhost", port=27017, db_name='torrent', conn_type="local", username='',
                  password=''):
@@ -442,3 +441,58 @@ class MongoConnection():
 
             self.db_lck.release()
             return tot
+
+    # partown tutte le parti a 1 sul db
+    def get_number_partown(self, sessionID):
+# TODO: da finre
+        tot = 0
+        self.db_lck.acquire()
+        try:
+            source = self.db.sessions.find_one({'session_id': sessionID})
+            files = self.db.files.find({'peers.session_id': sessionID})
+        except Exception as e:
+            output(self.out_lck, "Database Error > get_number_partdown: " + e.message)
+            self.db_lck.release()
+
+        if files is None:
+            self.db_lck.release()
+            return 0
+        else:
+            lista_file = list(files)
+            for i in range(len(lista_file)):  # ciclo numero di file
+                index2 = lista_file[i]
+                #print index2['name']
+                index_peer = index2['peers']
+                n_parts = int(math.ceil(float(index2['len_file']) / float(index2['len_part'])))
+                source_parts = self.db.files.find({'md5': index2['md5']},
+                                                  {'peers': {"$elemMatch": {"session_id": sessionID}},
+                                                   'peers.part_list': 1, '_id': 0})
+                source_bit = list(source_parts)[0]['peers'][0]['part_list']
+                parts = []
+                for j in range(0, len(source_bit)):  # ciclo parti del file
+                    is_available = False
+                    if source_bit[j] == '1':
+                        for peer in range(len(index_peer)):  # ciclo numero di peer
+                            if index_peer[peer]['ipv4'] == source['ipv4']:
+                                pass
+                            else:
+                                if index_peer[peer]['part_list'][j] == '1':
+                                    # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer][
+                                    #     'ipv4'] + " indice: " + str(j)
+                                    is_available = True
+                                    break
+                                else:
+                                    # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer][
+                                    #     'ipv4'] + " indicie: " + str(j)
+                                    is_available = False
+                        if is_available:
+                            parts.append('1')  # parte presente
+                        else:
+                            parts.append('0')
+                    else:
+                        pass
+                tot += parts.count('1')
+
+            self.db_lck.release()
+            return tot
+
