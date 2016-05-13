@@ -31,7 +31,7 @@ class Client(object):
         self.dbConnect = database
         self.out_lck = out_lck
         self.json_lck = threading.Lock()
-        #self.procedure_lck = threading.Lock()
+        self.procedure_lck = threading.Lock()
         self.print_trigger = print_trigger
         self.download_trigger = download_trigger
         self.fetch_thread = None
@@ -83,7 +83,7 @@ class Client(object):
 
         if response_message is None:
             output(self.out_lck, 'No response from tracker. Login failed')
-            self.procedure_lck.releasee()
+            self.procedure_lck.release()
         else:
             self.session_id = response_message[4:20]
             if self.session_id == '0000000000000000' or self.session_id == '':
@@ -92,7 +92,7 @@ class Client(object):
                 output(self.out_lck, 'Session ID assigned by the directory: ' + self.session_id)
                 output(self.out_lck, 'Login completed')
                 self.print_trigger.emit('Login completed', '02')
-            self.procedure_lck.releasee()
+            self.procedure_lck.release()
 
     def logout(self):
         #IPP2P:RND <> IPT:3000
@@ -129,7 +129,7 @@ class Client(object):
 
         if response_message is None:
             output(self.out_lck, 'No response from tracker. Login failed')
-            self.procedure_lck.releasee()
+            self.procedure_lck.release()
         elif response_message[0:4] == 'ALOG':
             self.session_id = None
 
@@ -137,7 +137,7 @@ class Client(object):
             output(self.out_lck, 'Logout completed')
             self.print_trigger.emit('Logout completed', '02')
 
-            self.procedure_lck.releasee()
+            self.procedure_lck.release()
         elif response_message[0:4] == "NLOG":
             self.session_id = None
 
@@ -145,11 +145,11 @@ class Client(object):
             output(self.out_lck, 'Logout denied')
             self.print_trigger.emit('Logout denied', '02')
 
-            self.procedure_lck.releasee()
+            self.procedure_lck.release()
         else:
             output(self.out_lck, 'Error: unknown response from tracker.\n')
             self.print_trigger.emit('Error: unknown response from tracker.', '01')
-            self.procedure_lck.releasee()
+            self.procedure_lck.release()
 
     def share(self):
         # IPP2P:RND <> IPT:3000
@@ -220,10 +220,13 @@ class Client(object):
                                 # output(self.out_lck, 'Error: ' + e.message)
                                 self.print_trigger.emit('Error: ' + e.message, '01')
 
+                            # Salvo file condiviso sul database
+                                self.dbConnect.insert_file(FileName, Filemd5_i, LenFile, LenPart)
+
                     if not found:
                         output(self.out_lck, 'Option not available')
 
-        self.procedure_lck.releasee()
+        self.procedure_lck.release()
 
     def look(self):
         #IPP2P:RND <> IPT:3000
@@ -273,7 +276,7 @@ class Client(object):
 
         if response_message is None:
             output(self.out_lck, 'No response from tracker. Look failed')
-            self.procedure_lck.releasee()
+            self.procedure_lck.release()
         elif response_message[0:4] == 'ALOO':
 
             idmd5 = None
@@ -287,7 +290,7 @@ class Client(object):
 
             if idmd5 is None:
                 output(self.out_lck, 'idmd5 is blank.')
-                self.procedure_lck.releasee()
+                self.procedure_lck.release()
             else:
                 try:
                     idmd5 = int(idmd5)
@@ -296,7 +299,7 @@ class Client(object):
                 else:
                     if idmd5 == 0:
                         output(self.out_lck, "No results found for search term: " + ricerca)
-                        self.procedure_lck.releasee()
+                        self.procedure_lck.release()
                     elif idmd5 > 0:  # At least one result
                         available_files = []
 
@@ -323,7 +326,7 @@ class Client(object):
 
                         if len(available_files) == 0:
                             output(self.out_lck, "No results found for search term: " + ricerca)
-                            self.procedure_lck.releasee()
+                            self.procedure_lck.release()
                         else:
                             output(self.out_lck, "Select a file to download ('c' to cancel): ")
                             for idx, file in enumerate(available_files):  # visualizza i risultati della ricerca
@@ -339,7 +342,7 @@ class Client(object):
                                 if option is None:
                                     output(self.out_lck, 'Please select an option')
                                 elif option == 'c':
-                                    self.procedure_lck.releasee()
+                                    self.procedure_lck.release()
                                     return
                                 else:
                                     try:
@@ -351,7 +354,7 @@ class Client(object):
                                 selected_file]  # Recupero del file selezionato dalla lista dei risultati
 
 
-                            self.procedure_lck.releasee()
+                            self.procedure_lck.release()
 
                             # Avvio un thread che esegue la fetch ogni 60(10) sec
                             #self.fetch_thread = threading.Timer(10, self.fetch(file_to_download))
@@ -359,15 +362,37 @@ class Client(object):
                             self.fetch_thread.start()
                             #self.fetch(file_to_download)
 
-                            # AVVIO IL THREAD DI GESTIONE DEL DOWNLOAD
-                            mainGet = threading.Thread(target=self.get_file, args=(file['md5'], file['name']))
-                            mainGet.start()
-                            output(self.out_lck, "Downloading file")
+                            output(self.out_lck, "Start download file?: ")
+                            output(self.out_lck, "1: Yes")
+                            output(self.out_lck, "2: No")
+
+                            start_download = None
+                            while start_download is None:
+                                try:
+                                    option = raw_input()
+                                except SyntaxError:
+                                    option = None
+
+                                if option is None:
+                                    output(self.out_lck, 'Please select an option')
+                                else:
+                                    try:
+                                        start_download = int(option)
+                                    except ValueError:
+                                        output(self.out_lck, "A number is required")
+
+                            if start_download == 1:
+                                # AVVIO IL THREAD DI GESTIONE DEL DOWNLOAD
+                                mainGet = threading.Thread(target=self.get_file, args=(file['md5'], file['name']))
+                                mainGet.start()
+                                output(self.out_lck, "Downloading file")
+                            else:
+                                output(self.out_lck, "Download aborted")
 
         else:
             output(self.out_lck, 'Error: unknown response from tracker.\n')
             self.print_trigger.emit('Error: unknown response from tracker.', '01')
-            self.procedure_lck.releasee()
+            self.procedure_lck.release()
 
     def fetch(self, file):
         # IPP2P:RND <> IPT:3000
@@ -406,7 +431,7 @@ class Client(object):
 
         if response_message is None:
             output(self.out_lck, 'No response from tracker. Fetch failed')
-            self.procedure_lck.releasee()
+            self.procedure_lck.release()
             self.fetching = False
         elif response_message[0:4] == 'AFCH':
 
@@ -453,7 +478,7 @@ class Client(object):
 
                     # scorro i risultati della FETCH ed aggiorno la lista delle parti in base alla disponibilità
                     for hp in hitpeers:
-                        part_count = 1
+                        part_count = 0
                         # VALIDO PER part_list salvata come stringa di caratteri ASCII
 
                         for c in hp['part_list']:
@@ -508,18 +533,18 @@ class Client(object):
 
                     output(self.out_lck, "Part table updated, fetch succeeded.")
                     self.fetching = False
-                    self.procedure_lck.releasee()
+                    self.procedure_lck.release()
 
             else:
                 output(self.out_lck, 'No peers found.\n')
                 self.print_trigger.emit('No peers found.\n', '01')
                 self.fetching = False
-                self.procedure_lck.releasee()
+                self.procedure_lck.release()
         else:
             output(self.out_lck, 'Error: unknown response from tracker.\n')
             self.print_trigger.emit('Error: unknown response from tracker.', '01')
             self.fetching = False
-            self.procedure_lck.releasee()
+            self.procedure_lck.release()
 
     def get_file(self, md5, file_name):
 
@@ -527,8 +552,18 @@ class Client(object):
         while self.fetching:
             time.sleep(1) # 1 sec
 
+        file_exists = False
+        for root, dirs, files in os.walk(self.path):
+            for file in files:
+                if file == (md5 + ".json"):
+                    file_exists == True
+
         # recupero le parti eventualmente gia scaricate
-        part_file = open(self.path + "/" + md5 + ".json", "r+b")
+        if file_exists:
+            part_file = open(self.path + "/" + md5 + ".json", "rb+")
+        else:
+            part_file = open(self.path + "/" + md5 + ".json", "wb+")
+
         downloaded_parts = {}
         try:
             downloaded_parts = json.load(part_file)
@@ -555,6 +590,7 @@ class Client(object):
                         # 2) Aggiungo it task in una coda
                         pool.add_task(self.downlaod, md5, download_idx, part_file, file_name)
                         threads += 1
+                        download_idx += 1
                     else:
                         download_idx += 1
 
@@ -604,7 +640,7 @@ class Client(object):
 
         output(self.out_lck, "Downloading part " + str(n_part) + " from " + selected_peer['ipv4'])
 
-        msg = "RETR" + md5 + str(n_part).zfill(8)
+        msg = "RETP" + md5 + str(n_part).zfill(8)
 
         response_message = None
         try:
@@ -657,7 +693,7 @@ class Client(object):
                         self.print_trigger.emit('Error: ' + e.message, '01')
                         break
 
-                output(self.out_lck, '\nDownload completed')
+                output(self.out_lck, '\nPart ' + str(n_part) + ' completed')
 
                 self.json_lck.acquire()  # si bloccherà se il lock è già occupato
                 # inserisco la parte scaricata nel oggetto json del file corrispondente
@@ -711,16 +747,16 @@ class Client(object):
 
         if response_message is None:
             output(self.out_lck, 'No response from tracker. Download failed')
-            self.procedure_lck.releasee()
+            self.procedure_lck.release()
         elif response_message[0:4] == 'RPAD':
 
             num_part = int(recvall(self.tracker, 8))
 
             output(self.out_lck, "Part "+ str(num_part) + " successfully downloaded.")
-            self.procedure_lck.releasee()
+            self.procedure_lck.release()
         else:
             output(self.out_lck, "Unknown response from tracker. Download failed")
-            self.procedure_lck.releasee()
+            self.procedure_lck.release()
 
     '''
         Helper methods

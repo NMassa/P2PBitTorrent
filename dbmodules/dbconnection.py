@@ -8,9 +8,10 @@ from helpers.helpers import *
 import math
 import threading
 
-class MongoConnection():
 
-    def __init__(self, out_lck, host="localhost", port=27017, db_name='torrent', conn_type="local", username='', password=''):
+class MongoConnection():
+    def __init__(self, out_lck, host="localhost", port=27017, db_name='torrent', conn_type="local", username='',
+                 password=''):
         self.out_lck = out_lck
         self.db_lck = threading.Lock()
         self.host = host
@@ -59,9 +60,9 @@ class MongoConnection():
         self.db_lck.acquire()
         try:
             cursor = self.db.sessions.find_one({"ipv4": ipv4,
-                                            "ipv6": ipv6,
-                                            "port": port
-                                            })
+                                                "ipv6": ipv6,
+                                                "port": port
+                                                })
         except Exception as e:
             output(self.out_lck, "Database Error > insert_session: " + e.message)
             self.db_lck.release()
@@ -102,22 +103,22 @@ class MongoConnection():
             lista_file = list(files)
             for i in range(len(lista_file)):  # ciclo numero di file
                 index2 = lista_file[i]
-                #print index2['name']
+                # print index2['name']
                 index_peer = index2['peers']
                 n_parts = int(math.ceil(float(index2['len_file']) / float(index2['len_part'])))
                 parts = []
                 for j in range(0, n_parts):  # ciclo paerti del file
                     is_available = False
-                    for peer in range(len(index_peer)):     # ciclo numero di peer
+                    for peer in range(len(index_peer)):  # ciclo numero di peer
                         if index_peer[peer]['ipv4'] == source['ipv4']:
                             pass
                         else:
                             if index_peer[peer]['part_list'][j] == '1':
-                                #print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + " " + str(j)
+                                # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + " " + str(j)
                                 is_available = True
                                 break
                             else:
-                                #print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + " " + str(j)
+                                # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + " " + str(j)
                                 is_available = False
                     if is_available:
                         parts.append('1')  # parte presente
@@ -125,7 +126,7 @@ class MongoConnection():
                         parts.append('0')
                 if '0' in parts:
                     self.db_lck.release()
-                    #print "parti mancanti"
+                    # print "parti mancanti"
                     return False
                 else:
                     self.db_lck.release()
@@ -143,8 +144,9 @@ class MongoConnection():
         # db.getCollection('hitpeers').find({md5: "md52"}, { _id : 0, md5 : 0, session_id : 0 })
         self.db_lck.acquire()
         try:
-            cursor = self.db.files.find({"md5": md5}, {"_id": 0, "md5": 0, "peers.session_id": 0, "name": 0, "len_part": 0,
-                                                   "len_file": 0})
+            cursor = self.db.files.find({"md5": md5},
+                                        {"_id": 0, "md5": 0, "peers.session_id": 0, "name": 0, "len_part": 0,
+                                         "len_file": 0})
         except Exception as e:
             output(self.out_lck, "Database Error > get_parts: " + e.message)
             self.db_lck.release()
@@ -173,19 +175,20 @@ class MongoConnection():
 
         if part is not None:
             try:
-                #self.db.files.update({'md5': md5, 'peers.session_id': sessionID}, {"$set": {'part_list': str_part}})
+                # self.db.files.update({'md5': md5, 'peers.session_id': sessionID}, {"$set": {'part_list': str_part}})
                 # db.files.update({'md5': "3md5", 'peers.session_id': "id1"}, {"$set": {'part_list': "dddd"}}) funziona
                 # db.getCollection('files').update({"md5": "1md5"}, {"$set": {"peers.part_list": "bbb"}})
 
                 peer = self.db.files.find_one({'md5': "3md5", 'peers.session_id': "id1"},
                                               {'peers': {"$elemMatch": {'session_id': "id1"}}})
-                #db.getCollection('files').findOne({'md5' : "3md5", 'peers.session_id' : "id1"}, {"peers": {"$elemMatch": {"session_id": "id1"}}})
+                # db.getCollection('files').findOne({'md5' : "3md5", 'peers.session_id' : "id1"}, {"peers": {"$elemMatch": {"session_id": "id1"}}})
                 str_part_old = peer['part_list']
                 str_list = list(str_part_old)
                 str_list[n_part] = '1'
                 str_part = "".join(str_list)
 
-                self.db.files.update({"md5": md5, 'peers': {'$elemMatch': {'session_id': sessionID}}}, {"$set": {'peers.$.part_list': str_part}})
+                self.db.files.update({"md5": md5, 'peers': {'$elemMatch': {'session_id': sessionID}}},
+                                     {"$set": {'peers.$.part_list': str_part}})
                 # db.getCollection('files').update({"md5": "1md5", 'peers': {'$elemMatch' : {'session_id':"id1"}}},{"$set":{'peers.$.part_list': "aaaaaaaaaa"}})
 
             except Exception as e:
@@ -203,7 +206,8 @@ class MongoConnection():
         check = self.db.hitpeers.find_one({"md5": md5, "session_id": sessionID})
         if check is not None:
             self.db.hitpeers.remove({"md5": md5, "session_id": sessionID})
-        self.db.hitpeers.insert_one({"md5": md5, "session_id": sessionID, "ipv4": ipv4, "ipv6": ipv6, "port": port, "part_list": str_part})
+        self.db.hitpeers.insert_one(
+            {"md5": md5, "session_id": sessionID, "ipv4": ipv4, "ipv6": ipv6, "port": port, "part_list": str_part})
 
         self.db_lck.release()
 
@@ -218,7 +222,7 @@ class MongoConnection():
         if file is not None:
             # update
             try:
-                #str_part ="\xff\xff\xff\xff"
+                # str_part ="\xff\xff\xff\xff"
                 str_part = chr(int("11111111", 2))
                 peer = self.db.sessions.find_one({"session_id": sessionID})
                 self.db.files.update({"md5": md5},
@@ -230,7 +234,7 @@ class MongoConnection():
         else:
             # insert
             try:
-                n_parts = int(math.ceil(float(LenFile)/float(LenPart)))
+                n_parts = int(math.ceil(float(LenFile) / float(LenPart)))
                 str_part = ""
                 i = 0
                 for i in range(1, n_parts):
@@ -240,8 +244,9 @@ class MongoConnection():
 
                 # TODO: sistemare database peer
                 self.db.files.insert_one({"name": name, "md5": md5, "len_file": LenFile, "len_part": LenPart,
-                                          'peers': [{'session_id': sessionID, 'ipv4': peer['ipv4'], 'ipv6': peer['ipv6'],
-                                                     'port': peer['port'], 'part_list': str_part}]})
+                                          'peers': [
+                                              {'session_id': sessionID, 'ipv4': peer['ipv4'], 'ipv6': peer['ipv6'],
+                                               'port': peer['port'], 'part_list': str_part}]})
             except Exception as e:
                 output(self.out_lck, "Database Error > insert_peer: " + e.message)
                 self.db_lck.release()
@@ -289,6 +294,19 @@ class MongoConnection():
         self.db_lck.release()
         return file
 
+    def insert_file(self, name, md5, len_file, len_part):
+        self.db_lck.acquire()
+        try:
+            self.db.files.insert_one({"name": name,
+                                      "md5": md5,
+                                      "len_file": len_file,
+                                      "len_part": len_part})
+        except Exception as e:
+            output(self.out_lck, "Database Error > get_file: " + e.message)
+            self.db_lck.release()
+
+        self.db_lck.release()
+
     def get_download(self, md5):
         self.db_lck.acquire()
         try:
@@ -321,9 +339,9 @@ class MongoConnection():
         self.db_lck.acquire()
         try:
             self.db.download.update_one({"md5": md5},
-                                               {
-                                                    "$set": {"parts": sorted_parts}
-                                               })
+                                        {
+                                            "$set": {"parts": sorted_parts}
+                                        })
         except Exception as e:
             output(self.out_lck, "Database Error > update_download_parts: " + e.message)
             self.db_lck.release()
@@ -356,12 +374,14 @@ class MongoConnection():
         self.db_lck.acquire()
         try:
             cursor = self.db.download.find({"md5": md5}, {"parts": {"$elemMatch": {"n": idx}}})
+            parts = list(cursor)
         except Exception as e:
             output(self.out_lck, "Database Error > get_downloadable_part: " + e.message)
             self.db_lck.release()
 
         if cursor.count() > 0:
-            part = cursor[0]
+            part = parts[0]['parts'][0]
+            # part = parts['parts'][0]
             self.db_lck.release()
             return part
         else:
@@ -388,7 +408,7 @@ class MongoConnection():
             lista_file = list(files)
             for i in range(len(lista_file)):  # ciclo numero di file
                 index2 = lista_file[i]
-                #print index2['name']
+                # print index2['name']
                 index_peer = index2['peers']
                 n_parts = int(math.ceil(float(index2['len_file']) / float(index2['len_part'])))
                 source_parts = self.db.files.find({'md5': index2['md5']},
@@ -422,4 +442,3 @@ class MongoConnection():
 
             self.db_lck.release()
             return tot
-
