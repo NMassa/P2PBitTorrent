@@ -80,6 +80,7 @@ class Ui_MainWindow(QtGui.QMainWindow):
         self.download_label.setObjectName(_fromUtf8("download_label"))
         self.verticalLayout_2.addWidget(self.download_label)
         self.progressBar = QtGui.QProgressBar(self.widget)
+        self.progressBar.setRange(0, 100)
         self.progressBar.setProperty("value", 0)
         self.progressBar.setObjectName(_fromUtf8("progressBar"))
         self.verticalLayout_2.addWidget(self.progressBar)

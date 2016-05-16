@@ -16,7 +16,7 @@ from GUI import download
 
 class Main(QtCore.QThread):
     download_trigger = QtCore.pyqtSignal(str, str, int)  # n parte, sorgente, progresso
-    download_progress_trigger = QtCore.pyqtSignal(int, int, str)  # n parti scaricate, n parti totale, nome file
+    download_progress_trigger = QtCore.pyqtSignal(int, str)  # n parti scaricate, n parti totale, nome file
     print_trigger = QtCore.pyqtSignal(str, str)
 
     def __init__(self,parent=None):

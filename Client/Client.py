@@ -394,13 +394,13 @@ class Client(object):
 
                             if start_download == 1:
                                 # AVVIO IL THREAD DI GESTIONE DEL DOWNLOAD
-                                mainGet = threading.Thread(target=self.get_file, args=(file['md5'], file['name']))
+                                mainGet = threading.Thread(target=self.get_file, args=(file_to_download['md5'], file_to_download['name']))
                                 mainGet.start()
 
                                 # Aggiorno la progress bar principale
                                 output(self.out_lck, "Downloading file")
                                 down_progress = 0
-                                self.download_progress_trigger.emit(down_progress, file['name'])
+                                self.download_progress_trigger.emit(down_progress, file_to_download['name'])
                             else:
                                 output(self.out_lck, "Download aborted")
 

@@ -275,6 +275,8 @@ class Tracker_Server(threading.Thread):
                     # Spazio
                     self.print_trigger.emit("", "10")
 
+                    self.dbConnect.update_parts(md5, session_id, num_part)
+
                     response = "APAD" + num_part
 
                     try:
