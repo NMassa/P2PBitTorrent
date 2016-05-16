@@ -17,7 +17,7 @@ class Client(object):
     path = "./fileCondivisi"
     tracker = None
 
-    def __init__(self, my_ipv4, my_ipv6, my_port, track_ipv4, track_ipv6, track_port, database, out_lck, print_trigger, download_trigger):
+    def __init__(self, my_ipv4, my_ipv6, my_port, track_ipv4, track_ipv6, track_port, database, out_lck, print_trigger, download_trigger, download_progress_trigger):
         """
             Costruttore della classe Peer
         """
@@ -34,6 +34,7 @@ class Client(object):
         self.procedure_lck = threading.Lock()
         self.print_trigger = print_trigger
         self.download_trigger = download_trigger
+        self.download_progress_trigger = download_progress_trigger
         self.fetch_thread = None
         self.fetching = False
 
@@ -116,7 +117,7 @@ class Client(object):
             # Spazio
             self.print_trigger.emit("", "00")
 
-            response_message = recvall(self.tracker, 7)
+            response_message = recvall(self.tracker, 14)
             # Risposta della directory, deve contenere ALGO e il numero di file che erano stati condivisi
             self.print_trigger.emit(
                 '<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4] + '  ' + response_message[4:7],
@@ -213,6 +214,7 @@ class Client(object):
                                 # Spazio
                                 self.print_trigger.emit("", "00")
 
+                                response_message = recvall(self.tracker, 4)
                             except socket.error, msg:
                                 # output(self.out_lck, 'Socket Error: ' + str(msg))
                                 self.print_trigger.emit('Socket Error: ' + str(msg), '01')
@@ -220,8 +222,17 @@ class Client(object):
                                 # output(self.out_lck, 'Error: ' + e.message)
                                 self.print_trigger.emit('Error: ' + e.message, '01')
 
-                            # Salvo file condiviso sul database
-                                self.dbConnect.insert_file(FileName, Filemd5_i, LenFile, LenPart)
+                            if response_message[:4] == 'AADR':
+
+                                part_n = int(recvall(self.tracker, 8))
+                                output(self.out_lck, "File successfully shared, parts: " + str(part_n))
+
+                                # Salvo file condiviso sul database
+                                self.dbConnect.insert_file(FileName.strip(), Filemd5_i, LenFile, LenPart)
+
+                            else:
+                                output(self.out_lck, 'Error: unknown response from tracker.\n')
+                                self.print_trigger.emit('Error: unknown response from tracker.', '01')
 
                     if not found:
                         output(self.out_lck, 'Option not available')
@@ -358,9 +369,9 @@ class Client(object):
 
                             # Avvio un thread che esegue la fetch ogni 60(10) sec
                             #self.fetch_thread = threading.Timer(10, self.fetch(file_to_download))
-                            self.fetch_thread = threading.Timer(10, self.fetch(file_to_download))
-                            self.fetch_thread.start()
-                            #self.fetch(file_to_download)
+                            #self.fetch_thread = threading.Timer(10, self.fetch(file_to_download))
+                            #self.fetch_thread.start()
+                            self.fetch(file_to_download)
 
                             output(self.out_lck, "Start download file?: ")
                             output(self.out_lck, "1: Yes")
@@ -385,7 +396,11 @@ class Client(object):
                                 # AVVIO IL THREAD DI GESTIONE DEL DOWNLOAD
                                 mainGet = threading.Thread(target=self.get_file, args=(file['md5'], file['name']))
                                 mainGet.start()
+
+                                # Aggiorno la progress bar principale
                                 output(self.out_lck, "Downloading file")
+                                down_progress = 0
+                                self.download_progress_trigger.emit(down_progress, file['name'])
                             else:
                                 output(self.out_lck, "Download aborted")
 
@@ -442,13 +457,9 @@ class Client(object):
 
                 for i in range(0, n_hitpeers):
                     hitpeer_ipv4 = recvall(self.tracker, 16).replace("|", "")
-                    #output(self.out_lck, hitpeer_ipv4)
                     hitpeer_ipv6 = recvall(self.tracker, 39)
-                    #output(self.out_lck, hitpeer_ipv6)
                     hitpeer_port = recvall(self.tracker, 5)
-                    #output(self.out_lck, hitpeer_port)
                     hitpeer_partlist = recvall(self.tracker, n_parts8)
-                    #output(self.out_lck, hitpeer_partlist)
 
                     hitpeers.append({
                         "ipv4": hitpeer_ipv4,
@@ -467,14 +478,6 @@ class Client(object):
                     else:
                         self.dbConnect.insert_download(file['name'], file['md5'], file['len_file'], file['len_part'])
                         parts = []
-                        # parts = []
-                        # self.dbConnect.download.inser_one({
-                        #     "name": file['name'],
-                        #     "md5": file['md5'],
-                        #     "len_file": file['len_file'],  # 1GB
-                        #     "len_part": file['len_part'],  # 256KB
-                        #     "parts": parts
-                        # })
 
                     # scorro i risultati della FETCH ed aggiorno la lista delle parti in base alla disponibilità
                     for hp in hitpeers:
@@ -513,6 +516,7 @@ class Client(object):
                                         parts.append({
                                                  "n": part_count,
                                                  "occ": 1,
+                                                 "downloaded": "false",
                                                  "peers": peers
                                              })
 
@@ -552,23 +556,25 @@ class Client(object):
         while self.fetching:
             time.sleep(1) # 1 sec
 
-        file_exists = False
-        for root, dirs, files in os.walk(self.path):
-            for file in files:
-                if file == (md5 + ".json"):
-                    file_exists == True
+        # file_exists = False
+        # for root, dirs, files in os.walk(self.path):
+        #     for file in files:
+        #         if file == (md5 + ".json"):
+        #             file_exists = True
 
         # recupero le parti eventualmente gia scaricate
-        if file_exists:
-            part_file = open(self.path + "/" + md5 + ".json", "rb+")
-        else:
-            part_file = open(self.path + "/" + md5 + ".json", "wb+")
-
-        downloaded_parts = {}
-        try:
-            downloaded_parts = json.load(part_file)
-        except Exception as e:
-            self.print_trigger.emit('Error: ' + e.message, '01')
+        # if file_exists:
+        #     part_file = open(self.path + "/" + md5 + ".json", "rb+")
+        # else:
+        #     part_file = open(self.path + "/" + md5 + ".json", "wb+")
+        #     part_file.close()
+        #     part_file = open(self.path + "/" + md5 + ".json", "rb+")
+        #
+        # downloaded_parts = {}
+        # try:
+        #     downloaded_parts = json.load(part_file)
+        # except Exception as e:
+        #     self.print_trigger.emit('Error: ' + e.message, '01')
 
         parts_table = self.dbConnect.get_download(md5)
 
@@ -577,50 +583,72 @@ class Client(object):
 
             download_completed = False
 
-            while not download_completed:
+            # while not download_completed:
                 # POOL THREAD PER IL DOWNLOAD DELLE PARTI
                 # 1) Inizio il Thread pool con il numero desiderato di threads
-                pool = ThreadPool(5)
+            pool = ThreadPool(5)
 
-                download_idx = 0
-                threads = 0
-                while threads < 5 or (len(parts) > download_idx):
+            download_idx = 0
+            threads = 0
+            downloading = self.dbConnect.downloading(md5)
 
-                    if True:#not parts[download_idx]['downloaded']:
-                        # 2) Aggiungo it task in una coda
-                        pool.add_task(self.downlaod, md5, download_idx, part_file, file_name)
-                        threads += 1
-                        download_idx += 1
-                    else:
-                        download_idx += 1
+            # while threads < 5 or (len(parts) > download_idx):
+            while threads < 5 or downloading:
+                if not parts[download_idx]['downloaded'] or parts[download_idx]['downloaded'] == "false":
+                    part_n = parts[download_idx]['n']
+
+                    # 2) Aggiungo it task in una coda
+                    pool.add_task(self.download, md5, part_n, file_name)
+                    threads += 1
+                    download_idx += 1
+                else:
+                    download_idx += 1
 
                 # 3) Aspetto il completamento dei task
                 pool.wait_completion()
 
-                downloaded_parts = json.load(part_file)
+                # Ricarico la lista delle parti che dovrebbe essere stata aggiornata con le parti scaricate
+                parts_table = self.dbConnect.get_download(md5)
+                parts = parts_table['parts']
 
-                if len(parts) == len(downloaded_parts):
-                    download_completed = True
+                # Ricomincio a scorrere la tabella dall'inizio perchè la fetch potrebbe cambiarne l'ordine
+                download_idx = 0
+
+            #downloaded_parts = json.load(part_file)
+
+            # if len(parts) == len(downloaded_parts):
+            #     download_completed = True
 
         else:
             output(self.out_lck, 'Error: parts table not found.\n')
 
+
+        # Unisco i file
+        list_parts = []
+
+        for root, dirs, files in os.walk("received/temp/"):
+            for f in files:
+                list_parts.append("received/temp/" + f)
+
+        join_parts(list_parts, "received/" + file_name)
+
+        self.download_progress_trigger.emit(100, file_name)
+
         # FACCIO LA JOIN DELLE PARTI DAL FILE.json
 
-        try:
-            all_file = json.load(part_file)
-            order_all_file = collections.OrderedDict(sorted(all_file.items()))
+        # try:
+        #     all_file = json.load(part_file)
+        #     order_all_file = collections.OrderedDict(sorted(all_file.items()))
+        #
+        #     file = open(self.path + "/" + file_name, "r+b")
+        #     for key, value in order_all_file.iteritems():
+        #         file.write(value)
+        #
+        #     file.close()
+        # except Exception as e:
+        #     self.print_trigger.emit('Error: ' + e.message, '01')
 
-            file = open(self.path + "/" + file_name, "r+b")
-            for key, value in order_all_file.iteritems():
-                file.write(value)
-
-            file.close()
-        except Exception as e:
-            self.print_trigger.emit('Error: ' + e.message, '01')
-
-
-    def downlaod(self, md5, n_part, part_file, file_name):
+    def download(self, md5, n_part, file_name):
         # IPP2P:RND <> IPP2P:PP2P
         # > “RETP”[4B].Filemd5_i[32B].PartNum[8B]
         # < “AREP”[4B].  # chunk[6B].{Lenchunk_i[5B].data[LB]}(i=1..#chunk)
@@ -664,7 +692,7 @@ class Client(object):
 
         else:
             if response_message[:4] == 'ARET':
-                n_chunks = response_message[4:10]  # Numero di parti del file da scaricare
+                n_chunks = recvall(download, 6)  # Numero di parti del file da scaricare
                 n_chunks = int(str(n_chunks).lstrip('0'))  # Rimozione gli 0 dal numero di parti e converte in intero
                 data = ''
                 for i in range(0, n_chunks):
@@ -678,7 +706,7 @@ class Client(object):
 
                         #updating progress bar
                         progress = round(float(i) / float(n_chunks), 0)
-                        self.download_trigger.emit(n_part, str(download.getpeername()[0]), progress, file_name)
+                        self.download_trigger.emit(str(n_part), str(download.getpeername()[0]), progress)
 
                     except socket.error as e:
                         # output(self.out_lck, 'Socket Error: ' + e.message)
@@ -695,17 +723,55 @@ class Client(object):
 
                 output(self.out_lck, '\nPart ' + str(n_part) + ' completed')
 
-                self.json_lck.acquire()  # si bloccherà se il lock è già occupato
-                # inserisco la parte scaricata nel oggetto json del file corrispondente
-                downloaded_part = json.load(part_file)
-                if downloaded_part:
-                    downloaded_part[n_part] = data
-                else:
-                    downloaded_part = { n_part: data }
+                download.shutdown(1)
+                download.close()
 
-                json.dump(downloaded_part, part_file, indent=4)
+                # Salvo la parte in un file
+                file_out = open("./received/tmp/" + file_name + '.%08d' % n_part, 'wb')
+                file_out.write(data)
+                file_out.close()
 
-                self.json_lck.release()
+                # Aggiorno la tabella di download segnando la parte scaricata
+                self.dbConnect.update_download(md5, n_part)
+
+                # Aggiorno la progress bar principale
+                n_parts, tot_parts = self.dbConnect.get_download_progress()
+                down_progress = int(n_parts / tot_parts)
+                self.download_progress_trigger.emit(down_progress, file_name)
+
+                # chapters = 0
+                # uglybuf = ''
+                # written = 0
+                # tgt = open("./received/tmp/" + file_name + '.%08d' % n_part, 'wb')
+                # while written < max_size:
+                #     tgt.write(uglybuf)
+                #     tgt.write(src.read(min(buffer, max_size - written)))
+                #     written += min(buffer, max_size - written)
+                #     uglybuf = src.read(1)
+                #     if len(uglybuf) == 0:
+                #         break
+                # tgt.close()
+
+
+
+
+
+                # self.json_lck.acquire()  # si bloccherà se il lock è già occupato
+                # # inserisco la parte scaricata nel oggetto json del file corrispondente
+                # downloaded_part = None
+                # try:
+                #     downloaded_part = json.load(part_file)
+                # except Exception:
+                #     pass
+                #
+                # if downloaded_part:
+                #     downloaded_part[n_part] = data
+                # else:
+                #     downloaded_part = { n_part: data }
+                #
+                # json.dump(downloaded_part, part_file, indent=4)
+                #
+                # self.json_lck.release()
 
             else:
                 output(self.out_lck, 'Error: unknown response from peer.\n')

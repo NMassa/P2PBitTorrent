@@ -9,6 +9,7 @@ import sys
 import time
 from ipaddr import *
 
+
 def hashfile(file, hasher, blocksize=65536):
     buf = file.read(blocksize)
     while len(buf) > 0:
@@ -16,6 +17,7 @@ def hashfile(file, hasher, blocksize=65536):
         buf = file.read(blocksize)
 
     return hasher.hexdigest()
+
 
 def hashfile_ip(file, hasher, bytes_ip):
     buf = file.read(65536)
@@ -89,35 +91,11 @@ def filesize(self, n):
         return sz
 
 
-def print_menu_top(lock):
-    lock.acquire()
-    print "########################################################"
-    print "##                                                    ##"
-    print "## |  \  /  \                                         ##\n" + \
-          "## | $$ /  $$  ______   ________   ______    ______   ##\n" + \
-          "## | $$/  $$  |      \ |        \ |      \  |      \  ##\n" + \
-          "## | $$  $$    \$$$$$$\ \$$$$$$$$  \$$$$$$\  \$$$$$$\ ##\n" + \
-          "## | $$$$$\   /      $$  /    $$  /      $$ /      $$ ##\n" + \
-          "## | $$ \$$\ |  $$$$$$$ /  $$$$_ |  $$$$$$$|  $$$$$$$ ##\n" + \
-          "## | $$  \$$\ \$$    $$|  $$    \ \$$    $$ \$$    $$ ##\n" + \
-          "## \$$   \$$  \$$$$$$$ \$$$$$$$$  \$$$$$$$  \$$$$$$$  ##"
-    print "##                                                    ##"
-    print "########################################################"
-    print "##                                                    ##"
-    lock.release()
-
-
-def print_menu_bottom(lock):
-    lock.acquire()
-    print "##                                                    ##"
-    print "########################################################"
-    lock.release()
-
-
 def output(lock, message):
     lock.acquire()
     print message
     lock.release()
+
 
 def output_timer(lock, seconds):
     lock.acquire()
@@ -129,116 +107,40 @@ def output_timer(lock, seconds):
 
     lock.release()
 
-def update_progress(lock, count, total, suffix=''):
+
+def split_file(file, prefix, max_size, buffer=1024):
+    chapters = 0
+    uglybuf = ''
+    with open(file, 'rb') as src:
+        while True:
+            tgt = open(prefix + '.%08d' % chapters, 'wb')
+            written = 0
+            while written < max_size:
+                tgt.write(uglybuf)
+                tgt.write(src.read(min(buffer, max_size - written)))
+                written += min(buffer, max_size - written)
+                uglybuf = src.read(1)
+                if len(uglybuf) == 0:
+                    break
+            tgt.close()
+            if len(uglybuf) == 0:
+                break
+            chapters += 1
+
+
+def join_parts(infiles, outfile, buffer=1024):
     """
-    Stampa la barra di progresso di download e upload
-
-    :param count: progresso
-    :type count: int
-    :param total: totale
-    :type total: int
-    :param suffix: nome del file
-    :type suffix: str
+    infiles: a list of files
+    outfile: the file that will be created
+    buffer: buffer size in bytes
     """
-    lock.acquire()
-
-    bar_len = 60
-    filled_len = int(round(bar_len * count / float(total)))
-
-    percents = round(100.0 * count / float(total), 1)
-    bar = '=' * filled_len + '-' * (bar_len - filled_len)
-
-    sys.stdout.write('\r[%s] %s%s ...%s' % (bar, percents, '%', suffix))
-    sys.stdout.flush()
-
-    lock.release()
-
-
-'''
-def sendTo(print_trigger, print_mode, ipv4, ipv6, port, msg):
-
-    c = connection.Connection(ipv4, ipv6, port, print_trigger, print_mode)
-    c.connect()
-    try:
-        peerSock = c.socket
-
-        peerSock.send(msg)
-
-        if msg[0:4] == "SUPE":
-            msg_pktId = msg[4:20]
-            msg_ipv4 = msg[20:35]
-            msg_ipv6 = msg[36:75]
-            msg_port = msg[75:80]
-            msg_ttl = msg[80:82]
-
-            print_trigger.emit("=> " + str(c.socket.getpeername()[0]) + "  " + msg[0:4] + "  " + msg_pktId + "  " + msg_ipv4 +
-                               "  " + msg_ipv6 + "  " + msg_port + "  " + msg_ttl, print_mode + "2")
-            # Spazio
-            print_trigger.emit("", print_mode + "0")
-
-        elif msg[0:4] == "ASUP":
-            msg_pktId = msg[4:20]
-            msg_ipv4 = msg[20:35]
-            msg_ipv6 = msg[36:75]
-            msg_port = msg[75:80]
-
-            print_trigger.emit("=> " + str(c.socket.getpeername()[0]) + "  " + msg[0:4] + "  " + msg_pktId + "  " + msg_ipv4 +
-                               "  " + msg_ipv6 + "  " + msg_port, print_mode + "2")
-            # Spazio
-            print_trigger.emit("", print_mode + "0")
-
-        elif msg[0:4] == "QUER":
-            msg_pktId = msg[4:20]
-            msg_ipv4 = msg[20:35]
-            msg_ipv6 = msg[36:75]
-            msg_port = msg[75:80]
-            msg_ttl = msg[80:82]
-            msg_searchStr = msg[82:102]
-
-            print_trigger.emit("=> " + str(c.socket.getpeername()[0]) + "  " + msg[0:4] + "  " + msg_pktId + "  " + msg_ipv4 +
-                               "  " + msg_ipv6 + "  " + msg_port + "  " + msg_ttl + "  " + msg_searchStr, print_mode + "2")
-
-            # Spazio
-            print_trigger.emit("",  print_mode + "0")
-
-        elif msg[0:4] == "AQUE":
-            msg_pktId = msg[4:20]
-            msg_ipv4 = msg[20:35]
-            msg_ipv6 = msg[36:75]
-            msg_port = msg[75:80]
-            msg_md5 = msg[80:112]
-            msg_fname = msg[112:212]
-
-            print_trigger.emit("=> " + str(c.socket.getpeername()[0]) + "  " + msg[0:4] + "  " + msg_pktId + "  " + msg_ipv4 +
-                               "  " + msg_ipv6 + "  " + msg_port + "  " + msg_md5 + "  " + msg_fname, print_mode + "2")
-
-            # Spazio
-            print_trigger.emit("", print_mode + "0")
-
-        peerSock.close()
-    except IOError as e:
-        print_trigger.emit('sendTo Error: ' + e.message, print_mode+"1")
-    except socket.error, msg:
-        print_trigger.emit('sendTo Error: ' + str(msg), print_mode+"1")
-    except Exception as e:
-        print_trigger.emit('sendTo Error: ' + e.message, print_mode+"1")
-'''
-
-def is_sender(address, pktIpv4, pktIpv6):
-    addrIpv4 = address.split(":")[-1]
-    if len(addrIpv4) > 4:
-        fragments = addrIpv4.split(".")
-        for idx, i in enumerate(fragments):
-            fragments[idx] = str(i).zfill(3)
-        mandatorIp = ".".join(fragments)
-        if mandatorIp == pktIpv4:
-            return True
-        else:
-            return False
-    else:
-
-        if IPv6Address(address).exploded == pktIpv6:
-            return True
-        else:
-            return False
-    return False
+    with open(outfile, 'w+b') as tgt:
+        for infile in sorted(infiles):
+            with open(infile, 'r+b') as src:
+                while True:
+                    data = src.read(buffer)
+                    if data:
+                        tgt.write(data)
+                    else:
+                        break
+            os.remove(infile)

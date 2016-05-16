@@ -15,7 +15,8 @@ from GUI import download
 
 
 class Main(QtCore.QThread):
-    download_trigger = QtCore.pyqtSignal(str, str, int, str)
+    download_trigger = QtCore.pyqtSignal(str, str, int)  # n parte, sorgente, progresso
+    download_progress_trigger = QtCore.pyqtSignal(int, int, str)  # n parti scaricate, n parti totale, nome file
     print_trigger = QtCore.pyqtSignal(str, str)
 
     def __init__(self,parent=None):
@@ -58,7 +59,9 @@ class Main(QtCore.QThread):
         server.start()
 
         if not tracker:
-            client = Client(config.my_ipv4, config.my_ipv6, int(config.my_port), config.track_ipv4, config.track_ipv6, config.track_port, db, out_lck, self.print_trigger, self.download_trigger)
+            client = Client(config.my_ipv4, config.my_ipv6, int(config.my_port), config.track_ipv4, config.track_ipv6,
+                            config.track_port, db, out_lck, self.print_trigger, self.download_trigger,
+                            self.download_progress_trigger)
 
             while client.session_id is None:
                 # print_menu_top(out_lck)
@@ -133,6 +136,7 @@ if __name__ == "__main__":
     main = Main()
     main.print_trigger.connect(mainwindow.print_on_main_panel)
     main.download_trigger.connect(mainwindow.update_progress)
+    main.download_progress_trigger.connect(mainwindow.download_progress)
     main.start()
 
     sys.exit(app.exec_())

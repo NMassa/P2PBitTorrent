@@ -347,6 +347,18 @@ class MongoConnection():
 
         self.db_lck.release()
 
+    def update_download(self, md5, part_n):
+        self.db_lck.acquire()
+        try:
+            self.db.download.update(
+                {"md5": md5, "parts": {"$elemMatch": {"n": part_n}}},
+                {"$set": {"parts.$.downloaded": "true"}})
+        except Exception as e:
+            output(self.out_lck, "Database Error > update_download: " + e.message)
+            self.db_lck.release()
+
+        self.db_lck.release()
+
     def downloading(self, md5):
         self.db_lck.acquire()
         try:
@@ -366,6 +378,30 @@ class MongoConnection():
             return completed
         else:
             output(self.out_lck, "Database Error > downloading: parts table not found for file " + md5)
+            self.db_lck.release()
+            return None
+
+    def get_download_progress(self, md5):
+        self.db_lck.acquire()
+        try:
+            download = self.db.download.find_one({"md5": md5})
+        except Exception as e:
+            output(self.out_lck, "Database Error > downloading: " + e.message)
+            self.db_lck.release()
+
+        if download is not None:
+            parts = download['parts']
+            parts_down = 0
+            parts_tot = len(parts)
+
+            for part in parts:
+                if part['downloaded'] == "true":
+                    parts_down += 1
+
+            self.db_lck.release()
+            return parts_down, parts_tot
+        else:
+            output(self.out_lck, "Database Error > get_download_progress: parts table not found for file " + md5)
             self.db_lck.release()
             return None
 

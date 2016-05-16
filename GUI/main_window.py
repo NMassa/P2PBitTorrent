@@ -106,7 +106,7 @@ class Ui_MainWindow(QtGui.QMainWindow):
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow", None))
         self.label.setText(_translate("MainWindow", "Client", None))
         self.label_1.setText(_translate("MainWindow", "Server", None))
-        self.download_label.setText(_translate("MainWindow", "Donwloading file <filename>", None))
+        self.download_label.setText(_translate("MainWindow", "Download idle", None))
         item = self.tableWidget.horizontalHeaderItem(0)
         item.setText(_translate("MainWindow", "Part n°", None))
         item = self.tableWidget.horizontalHeaderItem(1)
@@ -143,10 +143,7 @@ class Ui_MainWindow(QtGui.QMainWindow):
             self.client.setTextColor(QtGui.QColor('green'))
             self.client.append(message)
 
-    def update_progress(self, part_n, source, progress, file_name):
-
-        self.label.setText(_translate("MainWindow", "Donwloading file " + file_name, None))
-
+    def update_progress(self, part_n, source, progress):
         part_doesnt_exists = True
 
         allRows = self.tableWidget.rowCount()
@@ -178,3 +175,13 @@ class Ui_MainWindow(QtGui.QMainWindow):
             progressbar.setRange(0, 100)
             progressbar.setValue(progress)
             self.tableWidget.setCellWidget(row, 2, progressbar)
+
+    def download_progress(self, down_progress, file_name):
+
+        if down_progress == 100:
+            self.label.setText(_translate("MainWindow", "File " + file_name + " successfully downloaded.", None))
+            self.progressBar.setValue(down_progress)
+        else:
+            self.label.setText(_translate("MainWindow", "Downloading file " + file_name, None))
+
+            self.progressBar.setValue(down_progress)
