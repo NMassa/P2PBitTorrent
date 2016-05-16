@@ -8,8 +8,8 @@ from helpers.helpers import *
 import math
 import threading
 
-
 class MongoConnection():
+
     def __init__(self, out_lck, host="localhost", port=27017, db_name='torrent', conn_type="local", username='',
                  password=''):
         self.out_lck = out_lck
@@ -90,51 +90,54 @@ class MongoConnection():
     def remove_session(self, sessionID):
         self.db_lck.acquire()
         try:
-            source = self.get_session(sessionID)
+            source = self.db.sessions.find_one({"session_id": sessionID})
             files = self.db.files.find({'peers.session_id': sessionID})
         except Exception as e:
             output(self.out_lck, "Database Error > remove_session: " + e.message)
             self.db_lck.release()
-        else:
-            if files is None:
-                self.db_lck.release()
-                return True
-            else:
-                lista_file = list(files)
-                for i in range(len(lista_file)):  # ciclo numero di file
-                    index2 = lista_file[i]
-                    # print index2['name']
-                    index_peer = index2['peers']
-                    n_parts = int(math.ceil(float(index2['len_file']) / float(index2['len_part'])))
-                    parts = []
-                    for j in range(0, n_parts):  # ciclo paerti del file
-                        is_available = False
-                        for peer in range(len(index_peer)):  # ciclo numero di peer
-                            if index_peer[peer]['ipv4'] == source['ipv4']:
-                                pass
-                            else:
-                                if index_peer[peer]['part_list'][j] == '1':
-                                    # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + " " + str(j)
-                                    is_available = True
-                                    break
-                                else:
-                                    # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + " " + str(j)
-                                    is_available = False
-                        if is_available:
-                            parts.append('1')  # parte presente
-                        else:
-                            parts.append('0')
-                    if '0' in parts:
-                        self.db_lck.release()
-                        # print "parti mancanti"
-                        return False
-                    else:
-                        self.db_lck.release()
-                        return True
-                        break
 
-                self.db_lck.release()
-                return True
+        if files is None:
+            self.db.sessions.remove({'session_id': sessionID})
+            self.db_lck.release()
+            return True
+        else:
+            lista_file = list(files)
+            for i in range(len(lista_file)):  # ciclo numero di file
+                index2 = lista_file[i]
+                # print index2['name']
+                index_peer = index2['peers']
+                n_parts = int(math.ceil(float(index2['len_file']) / float(index2['len_part'])))
+                parts = []
+                for j in range(0, n_parts):  # ciclo paerti del file
+                    is_available = False
+                    for peer in range(len(index_peer)):  # ciclo numero di peer
+                        if index_peer[peer]['ipv4'] == source['ipv4']:
+                            pass
+                        else:
+                            if index_peer[peer]['part_list'][j] == '1':
+                                # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + " " + str(j)
+                                is_available = True
+                                break
+                            else:
+                                # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + " " + str(j)
+                                is_available = False
+                    if is_available:
+                        parts.append('1')  # parte presente
+                    else:
+                        parts.append('0')
+                if '0' in parts:
+                    self.db_lck.release()
+                    # print "parti mancanti"
+                    return False
+                else:
+                    self.db_lck.release()
+                    return True
+                    break
+            self.db.sessions.remove({'session_id': sessionID})
+            # TODO: eliminare sessione e part_list
+            #db.getCollection('hitpeers').update({"md5": "md51"}, {'$pull': {"ipv4": { '$in': ["aaa"]}}})
+            self.db_lck.release()
+            return True
 
     def get_parts(self, md5):
         """
@@ -205,38 +208,39 @@ class MongoConnection():
         except Exception as e:
             output(self.out_lck, "Database Error > insert_peer: " + e.message)
             self.db_lck.release()
+
+        if file is not None:
+            pass
+            # update
+            #try:
+                # str_part ="\xff\xff\xff\xff"
+                #str_part = chr(int("11111111", 2))
+                #peer = self.db.sessions.find_one({"session_id": sessionID})
+                #self.db.files.update({"md5": md5},
+                                     #{"$push": {"peers": [{"session_id": sessionID, "part_list": str_part}]}})
+                # self.db.files.update({"md5": md5}, {"$addToSet": {"peers": {"session_id": sessionID, "part_list": str_part}}})
+            #except Exception as e:
+                #output(self.out_lck, "Database Error > insert_peer: " + e.message)
+                #self.db_lck.release()
         else:
-            if file is not None:
-                # update
-                try:
-                    # str_part ="\xff\xff\xff\xff"
-                    str_part = chr(int("11111111", 2))
-                    peer = self.db.sessions.find_one({"session_id": sessionID})
-                    self.db.files.update({"md5": md5},
-                                         {"$push": {"peers": [{"session_id": sessionID, "part_list": str_part}]}})
-                    # self.db.files.update({"md5": md5}, {"$addToSet": {"peers": {"session_id": sessionID, "part_list": str_part}}})
-                except Exception as e:
-                    output(self.out_lck, "Database Error > insert_peer: " + e.message)
-                    self.db_lck.release()
-            else:
-                # insert
-                try:
-                    n_parts = int(math.ceil(float(LenFile) / float(LenPart)))
-                    str_part = ""
-                    i = 0
-                    for i in range(1, n_parts):
-                        str_part = str_part + "1"
+            # insert
+            try:
+                n_parts = int(math.ceil(float(LenFile) / float(LenPart)))
+                str_part = ""
+                for i in range(1, n_parts):
+                    str_part = str_part + "1"
 
-                    peer = self.db.sessions.find_one({"session_id": sessionID})
+                peer = self.db.sessions.find_one({"session_id": sessionID})
 
-                    # TODO: sistemare database peer
-                    self.db.files.insert_one({"name": name, "md5": md5, "len_file": LenFile, "len_part": LenPart,
-                                              'peers': [
-                                                  {'session_id': sessionID, 'ipv4': peer['ipv4'], 'ipv6': peer['ipv6'],
-                                                   'port': peer['port'], 'part_list': str_part}]})
-                except Exception as e:
-                    output(self.out_lck, "Database Error > insert_peer: " + e.message)
-                    self.db_lck.release()
+                # TODO: sistemare database peer
+                self.db.files.insert_one({"name": name, "md5": md5, "len_file": LenFile, "len_part": LenPart,
+                                          'peers': [
+                                              {'session_id': sessionID, 'ipv4': peer['ipv4'], 'ipv6': peer['ipv6'],
+                                               'port': peer['port'], 'part_list': str_part}]})
+                self.db_lck.release()
+            except Exception as e:
+                output(self.out_lck, "Database Error > insert_peer: " + e.message)
+                self.db_lck.release()
 
     def get_files(self, query_str):
         """
@@ -244,14 +248,17 @@ class MongoConnection():
         """
         self.db_lck.acquire()
         try:
-            regexp = re.compile(query_str.strip(" "), re.IGNORECASE)
-            if regexp == "*":
+            if query_str.strip(" ") == '*' or query_str.strip(" ") == '':
                 files = self.db.files.find()
             else:
+                regexp = re.compile(query_str.strip(" "), re.IGNORECASE)
                 files = self.db.files.find({"name": {"$regex": regexp}})
+            self.db_lck.release()
+            return files
         except Exception as e:
             output(self.out_lck, "Database Error > get_files: " + e.message)
             self.db_lck.release()
+
         else:
             self.db_lck.release()
             return files
@@ -454,7 +461,6 @@ class MongoConnection():
 
     # partown tutte le parti a 1 sul db
     def get_number_partown(self, sessionID):
-        # TODO: da finre
         tot = 0
         self.db_lck.acquire()
         try:
@@ -471,7 +477,6 @@ class MongoConnection():
                 lista_file = list(files)
                 for i in range(len(lista_file)):  # ciclo numero di file
                     index2 = lista_file[i]
-                    #print index2['name']
                     index_peer = index2['peers']
                     n_parts = int(math.ceil(float(index2['len_file']) / float(index2['len_part'])))
                     source_parts = self.db.files.find({'md5': index2['md5']},
@@ -480,29 +485,33 @@ class MongoConnection():
                     source_bit = list(source_parts)[0]['peers'][0]['part_list']
                     parts = []
                     for j in range(0, len(source_bit)):  # ciclo parti del file
-                        is_available = False
                         if source_bit[j] == '1':
-                            for peer in range(len(index_peer)):  # ciclo numero di peer
-                                if index_peer[peer]['ipv4'] == source['ipv4']:
-                                    pass
-                                else:
-                                    if index_peer[peer]['part_list'][j] == '1':
-                                        # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer][
-                                        #     'ipv4'] + " indice: " + str(j)
-                                        is_available = True
-                                        break
-                                    else:
-                                        # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer][
-                                        #     'ipv4'] + " indicie: " + str(j)
-                                        is_available = False
-                            if is_available:
-                                parts.append('1')  # parte presente
-                            else:
-                                parts.append('0')
+                            parts.append('1')
+                            pass
                         else:
+                            parts.append('0')
                             pass
                     tot += parts.count('1')
-
                 self.db_lck.release()
                 return tot
 
+    def number_part(self,sessionID):
+        tot = 0
+        self.db_lck.acquire()
+        try:
+            source = self.db.sessions.find_one({'session_id': sessionID})
+            files = self.db.files.find({'peers.session_id': sessionID})
+        except Exception as e:
+            output(self.out_lck, "Database Error > get_number_partdown: " + e.message)
+            self.db_lck.release()
+        if files is None:
+            self.db_lck.release()
+            return 0
+        else:
+            lista_file = list(files)
+            for i in range(len(lista_file)):
+                index2 = lista_file[i]
+                #index_peer = index2['peers']
+                tot += int(math.ceil(float(index2['len_file']) / float(index2['len_part'])))
+            self.db_lck.release()
+            return tot

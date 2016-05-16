@@ -118,9 +118,11 @@ class Client(object):
             self.print_trigger.emit("", "00")
 
             response_message = recvall(self.tracker, 14)
-            # Risposta della directory, deve contenere ALGO e il numero di file che erano stati condivisi
+            n_parts = response_message[4:14]
+            tot_parts = self.dbConnect.number_part(self.session_id)
+
             self.print_trigger.emit(
-                '<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4] + '  ' + response_message[4:7],
+                '<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4] + '  ' + n_parts,
                 '02')
 
         except socket.error, msg:
@@ -133,19 +135,16 @@ class Client(object):
             self.procedure_lck.release()
         elif response_message[0:4] == 'ALOG':
             self.session_id = None
-
+            # TODO: fare il check della connessione sulla socket dopo 60'
             self.tracker.close()  # Chiusura della connessione
-            output(self.out_lck, 'Logout completed')
+            output(self.out_lck, 'Logout completed, parts file downloaded: ' + str(n_parts))
             self.print_trigger.emit('Logout completed', '02')
+
 
             self.procedure_lck.release()
         elif response_message[0:4] == "NLOG":
-            self.session_id = None
-
-            self.tracker.close()  # Chiusura della connessione
-            output(self.out_lck, 'Logout denied')
+            output(self.out_lck, 'Logout denied, parts file: ' + str(n_parts) + "/" + str(tot_parts) + "downloaded")
             self.print_trigger.emit('Logout denied', '02')
-
             self.procedure_lck.release()
         else:
             output(self.out_lck, 'Error: unknown response from tracker.\n')

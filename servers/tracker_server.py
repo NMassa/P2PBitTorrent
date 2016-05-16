@@ -64,46 +64,50 @@ class Tracker_Server(threading.Thread):
                         self.print_trigger.emit('Error: ' + e.message, "11")
                     # Spazio
                     self.print_trigger.emit("", "10")
-                    print "login"
 
                 elif cmd[:4] == 'LOGO':
                     # IPP2P:RND <> IPT:3000
                     # > “LOGO”[4B].SessionID[16B]
                     # 1 < “NLOG”[4B].  # partdown[10B]
                     # 2 < “ALOG”[4B].  # partown[10B]
-                    sessId = cmd[4:20]
-                    self.print_trigger.emit("<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + sessId, "10")
+                    session_Id = cmd[4:20]
+                    self.print_trigger.emit("<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + session_Id, "10")
 
                     # Spazio
                     self.print_trigger.emit("", "10")
 
-                    delete = self.dbConnect.remove_session(sessId)
+                    delete = self.dbConnect.remove_session(session_Id)
                     if delete is True:
                         print "logout"
                         # logout concesso
+                        # TODO: finire
+                        partown = self.dbConnect.get_number_partown(session_Id)
+                        msg = "ALOG" + str(partown).zfill(8)
+                        try:
+                            conn.send(msg)
+                            # TODO: da finire la funzione che conta le parti
+                            self.print_trigger.emit("=> " + "ALOG" + "  " + str(partown).zfill(8), "12")
+                        except socket.error, msg:
+                            self.print_trigger.emit("Connection Error: %s" % msg, "11")
+                        except Exception as e:
+                            self.print_trigger.emit('Error: ' + e.message, "11")
+                        # Spazio
+                        self.print_trigger.emit("", "10")
                     else:
                         print "not logout"
                         # logout non concesso
+                        partdown = self.dbConnect.get_number_partdown(session_Id)
+                        msg = "NLOG" + str(partdown).zfill(8)
+                        try:
+                            conn.send(msg)
+                            self.print_trigger.emit("=> " + "NLOG" + " " + str(partdown).zfill(8), "12")
+                        except socket.error, msg:
+                            self.print_trigger.emit("Connection Error: %s" % msg, "11")
+                        except Exception as e:
+                            self.print_trigger.emit('Error: ' + e.message, "11")
+                        # Spazio
+                        self.print_trigger.emit("", "10")
 
-                    '''
-
-                    msg = 'ALGO' + str(delete).zfill(3)
-
-                    try:
-
-                        conn.send(msg)
-                        self.print_trigger.emit("=> " + str(self.address[0]) + "  " + msg[0:4] + '  ' + msg[4:7], "12")
-
-                    except socket.error, msg:
-                        self.print_trigger.emit("Connection Error: %s" % msg, "11")
-                    except Exception as e:
-                        self.print_trigger.emit('Error: ' + e.message, "11")
-
-                    # Spazio
-                    self.print_trigger.emit("", "10")
-                    '''
-
-                    print "logout"
 
                 elif cmd[:4] == 'ADDR':
                     #IPP2P:RND <> IPT:3000
@@ -243,7 +247,7 @@ class Tracker_Server(threading.Thread):
                                 part = part.ljust(8, "0")
                                 ascii_part_list += chr(int(part, 2))
 
-                        print ascii_part_list
+                        #print ascii_part_list
 
                         msg += str(peer['ipv4']) + "|" + str(peer['ipv6']) + str(peer['port']) + str(ascii_part_list)
                         print_msg += "  " + str(peer['ipv4']) + "  " + str(peer['ipv6']) + "  " + str(peer['port']) + "  " + str(ascii_part_list)
