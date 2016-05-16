@@ -592,16 +592,17 @@ class Client(object):
             downloading = self.dbConnect.downloading(md5)
 
             # while threads < 5 or (len(parts) > download_idx):
-            while threads < 5 or downloading:
-                if not parts[download_idx]['downloaded'] or parts[download_idx]['downloaded'] == "false":
-                    part_n = parts[download_idx]['n']
+            while not downloading:
+                while pool.tasks.qsize() < 5:
+                    if not parts[download_idx]['downloaded'] or parts[download_idx]['downloaded'] == "false":
+                        part_n = parts[download_idx]['n']
 
-                    # 2) Aggiungo it task in una coda
-                    pool.add_task(self.download, md5, part_n, file_name)
-                    threads += 1
-                    download_idx += 1
-                else:
-                    download_idx += 1
+                        # 2) Aggiungo it task in una coda
+                        pool.add_task(self.download, md5, part_n, file_name)
+                        #threads += 1
+                        download_idx += 1
+                    else:
+                        download_idx += 1
 
                 # 3) Aspetto il completamento dei task
                 pool.wait_completion()
@@ -704,7 +705,7 @@ class Client(object):
                         data += recvall(download, int(chunk_length))  # Ricezione dal peer la parte del file
 
                         #updating progress bar
-                        progress = round(float(i) / float(n_chunks), 0)
+                        progress = round(float(i) * 100 / float(n_chunks), 0)
                         self.download_trigger.emit(str(n_part), str(download.getpeername()[0]), progress)
 
                     except socket.error as e:
@@ -726,7 +727,7 @@ class Client(object):
                 download.close()
 
                 # Salvo la parte in un file
-                file_out = open("./received/tmp/" + file_name + '.%08d' % n_part, 'wb')
+                file_out = open("./received/temp/" + file_name + '.%08d' % n_part, 'wb')
                 file_out.write(data)
                 file_out.close()
 
@@ -734,7 +735,7 @@ class Client(object):
                 self.dbConnect.update_download(md5, n_part)
 
                 # Aggiorno la progress bar principale
-                n_parts, tot_parts = self.dbConnect.get_download_progress()
+                n_parts, tot_parts = self.dbConnect.get_download_progress(md5)
                 down_progress = int(n_parts / tot_parts)
                 self.download_progress_trigger.emit(down_progress, file_name)
 
@@ -774,8 +775,6 @@ class Client(object):
 
             else:
                 output(self.out_lck, 'Error: unknown response from peer.\n')
-
-
 
             # set downloaded == True per la part nel DB
             # self.dbConnect.set_downloaded_part(md5, n_part)

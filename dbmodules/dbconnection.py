@@ -227,7 +227,7 @@ class MongoConnection():
             try:
                 n_parts = int(math.ceil(float(LenFile) / float(LenPart)))
                 str_part = ""
-                for i in range(1, n_parts):
+                for i in range(0, n_parts):
                     str_part = str_part + "1"
 
                 peer = self.db.sessions.find_one({"session_id": sessionID})
@@ -277,10 +277,13 @@ class MongoConnection():
     def insert_file(self, name, md5, len_file, len_part):
         self.db_lck.acquire()
         try:
-            self.db.files.insert_one({"name": name,
-                                      "md5": md5,
-                                      "len_file": len_file,
-                                      "len_part": len_part})
+            exists = self.db.files.find_one({"md5": md5})
+
+            if not exists:
+                self.db.files.insert_one({"name": name,
+                                          "md5": md5,
+                                          "len_file": len_file,
+                                          "len_part": len_part})
         except Exception as e:
             output(self.out_lck, "Database Error > insert_file: " + e.message)
             self.db_lck.release()

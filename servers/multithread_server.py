@@ -16,7 +16,7 @@ class Server(threading.Thread, QtCore.QThread):
         self.host = ''
         self.port_peer = 6000
         self.port_dir = 3000
-        self.backlog = 500
+        self.backlog = 100
         self.size = 1024
         self.server = None
         self.sock_lst = []

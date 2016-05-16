@@ -199,7 +199,7 @@ class Tracker_Server(threading.Thread):
                     file_md5 = cmd[20:52]
 
                     self.print_trigger.emit(
-                        "<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + session_id +" " + file_md5, "10")
+                        "<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + session_id + " " + file_md5, "10")
                     # Spazio
                     self.print_trigger.emit("", "10")
 
@@ -235,7 +235,7 @@ class Tracker_Server(threading.Thread):
                     for peer in hitpeers:
                         ascii_part_list = ""
                         n = 8
-                        parts_8 = [peer['part_list'][i:i+n] for i in range(0, len(peer['part_list']), n)]
+                        parts_8 = [peer['part_list'][i:i+n] for i in range(0, len(peer['part_list'])+1, n)]
 
                         #
                         # L'ultima parte può essere più corta quindi vanno aggiunti degli zeri alla fine, altrimenti python
