@@ -25,6 +25,9 @@ class MongoConnection():
                 self.db.create_collection("files")
             if "download" not in self.db.collection_names():
                 self.db.create_collection("download")
+            #self.db.files.remove({})
+            self.db.sessions.remove({})
+
         except Exception as e:
             output(self.out_lck, "Could not connect to server: " + e.message)
 
@@ -277,7 +280,6 @@ class MongoConnection():
         except Exception as e:
             output(self.out_lck, "Database Error > get_files: " + e.message)
             self.db_lck.release()
-
         else:
             self.db_lck.release()
             return files
@@ -297,7 +299,7 @@ class MongoConnection():
         self.db_lck.acquire()
         try:
             file = self.db.files.find_one({"md5": md5})
-            if file is not None:
+            if file is None:
                 self.db.files.insert_one({"name": name,
                                           "md5": md5,
                                           "len_file": len_file,
@@ -554,7 +556,7 @@ class MongoConnection():
         if files is None:
             self.db.sessions.remove({'session_id': sessionID})
             self.db_lck.release()
-            return True
+            return "T" + '000000000'
         else:
             lista_file = list(files)
             for i in range(len(lista_file)):  # ciclo numero di file
@@ -566,6 +568,7 @@ class MongoConnection():
                 parts_own = []
                 parts_down = []
                 for j in range(0, n_parts - 1):  # ciclo parti del file
+                    is_available = False
                     if my_file_list['peers'][0]['part_list'][j] == '1':  # controllo solo le parti che posseggo
                         parts_own.append('1')
                         for peer in range(len(index_peer)):  # ciclo numero di peer

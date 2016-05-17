@@ -62,7 +62,7 @@ class Peer_Server(threading.Thread):
 
                     # Se il percorso in fileCondivisi non esiste significa che il file non è mio ma lo sto scaricando
                     # quindi vado a cercare la parte in received
-                    if os.path.exists(self.path + self.path + "/" + db_file['name']):
+                    if os.path.exists(self.path + "/" + db_file['name']):
                         file = open(self.path + "/" + db_file['name'], 'rb')
 
                         part_count = 0
@@ -128,7 +128,7 @@ class Peer_Server(threading.Thread):
                                     conn.sendall(msg)  # Invio di
                                     chunks_sent += 1
 
-                                    output(self.output_lock, str(part_num) + " : " + str(chunks_sent))
+                                    #output(self.output_lock, str(part_num) + " : " + str(chunks_sent))
                                     # update_progress(self.output_lock, chunks_sent, n_chunks,
                                     #                 'Uploading ' + file['name'])  # Stampa a video del progresso dell'upload
 
@@ -149,7 +149,7 @@ class Peer_Server(threading.Thread):
                                 except Exception as e:
                                     self.print_trigger.emit('Error: ' + e.message, '11')
 
-                            output(self.output_lock, "\r\nUpload Completed")
+                            #output(self.output_lock, "\r\nUpload Completed")
 
                         except socket.error, msg:
                             self.print_trigger.emit("Connection Error: %s" % msg, '11')
