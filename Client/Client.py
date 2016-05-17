@@ -393,7 +393,10 @@ class Client(object):
 
                             if start_download == 1:
                                 # AVVIO IL THREAD DI GESTIONE DEL DOWNLOAD
-                                mainGet = threading.Thread(target=self.get_file, args=(file_to_download['md5'], file_to_download['name']))
+                                mainGet = threading.Thread(target=self.get_file, args=(file_to_download['md5'],
+                                                                                       file_to_download['name'],
+                                                                                       file_to_download['len_file'],
+                                                                                       file_to_download['len_part']))
                                 mainGet.start()
 
                                 # Aggiorno la progress bar principale
@@ -549,11 +552,14 @@ class Client(object):
             self.fetching = False
             self.procedure_lck.release()
 
-    def get_file(self, md5, file_name):
+    def get_file(self, md5, file_name, len_file, len_part):
 
         #aspetto che la fetch abbia terminato
         while self.fetching:
             time.sleep(1) # 1 sec
+
+        # inserisco il file nel database in modo che le parti siano disponibili al download degli altri peer
+        self.dbConnect.insert_file(file_name, md5, len_file, len_part)
 
         # file_exists = False
         # for root, dirs, files in os.walk(self.path):
@@ -621,7 +627,6 @@ class Client(object):
 
         else:
             output(self.out_lck, 'Error: parts table not found.\n')
-
 
         # Unisco i file
         list_parts = []
@@ -739,6 +744,9 @@ class Client(object):
                 down_progress = int(n_parts / tot_parts)
                 self.download_progress_trigger.emit(down_progress, file_name)
 
+                # Notifica al tracker del download avvenuto
+                self.notify_tracker(md5, n_part)
+
                 # chapters = 0
                 # uglybuf = ''
                 # written = 0
@@ -751,10 +759,6 @@ class Client(object):
                 #     if len(uglybuf) == 0:
                 #         break
                 # tgt.close()
-
-
-
-
 
                 # self.json_lck.acquire()  # si bloccherà se il lock è già occupato
                 # # inserisco la parte scaricata nel oggetto json del file corrispondente
@@ -816,7 +820,7 @@ class Client(object):
 
             num_part = int(recvall(self.tracker, 8))
 
-            output(self.out_lck, "Part "+ str(num_part) + " successfully downloaded.")
+            output(self.out_lck, "Tracker successfully notified for part " + str(num_part))
             self.procedure_lck.release()
         else:
             output(self.out_lck, "Unknown response from tracker. Download failed")

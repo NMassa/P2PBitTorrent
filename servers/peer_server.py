@@ -60,18 +60,46 @@ class Peer_Server(threading.Thread):
                     partsize = int(db_file['len_part'])
                     #partsize = 262144
 
-                    file = open(self.path + "/" + db_file['name'], 'rb')
+                    # Se il percorso in fileCondivisi non esiste significa che il file non è mio ma lo sto scaricando
+                    # quindi vado a cercare la parte in received
+                    if os.path.exists(self.path + self.path + "/" + db_file['name']):
+                        file = open(self.path + "/" + db_file['name'], 'rb')
 
-                    part_count = 0
-                    requested_part = None
-                    buf = file.read(partsize)
-                    while len(buf) > 0:
-                        if part_count == part_num:
-                            requested_part = buf
-                            break
-                        else:
-                            part_count += 1
-                            buf = file.read(partsize)
+                        part_count = 0
+                        requested_part = None
+                        buf = file.read(partsize)
+                        while len(buf) > 0:
+                            if part_count == part_num:
+                                requested_part = buf
+                                break
+                            else:
+                                part_count += 1
+                                buf = file.read(partsize)
+
+                    elif os.path.exists("./received/" + db_file['name']):
+                        # Il file è tra quelli scaricati ed è completato
+                        file = open("./received/" + db_file['name'], 'rb')
+
+                        part_count = 0
+                        requested_part = None
+                        buf = file.read(partsize)
+                        while len(buf) > 0:
+                            if part_count == part_num:
+                                requested_part = buf
+                                break
+                            else:
+                                part_count += 1
+                                buf = file.read(partsize)
+                    else:
+                        # Il file è ancora in download quindi cerco la parte in received/temp
+
+                        requested_part = None
+
+                        for root, dirs, files in os.walk("received/temp/"):
+                            for file in files:
+                                if file == (db_file['name'] + '.%08d' % part_num):
+                                    requested_part_file = open(db_file['name'] + '.%08d' % part_num)
+                                    requested_part = requested_part_file.read(partsize)
 
                     if requested_part:
                         chunk_size = 1024
