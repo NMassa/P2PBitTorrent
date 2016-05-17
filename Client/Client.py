@@ -16,6 +16,8 @@ class Client(object):
     #TODO cambiare sul mac con ./fileCondivisi
     path = "./fileCondivisi"
     tracker = None
+    parallel_downloads = 5
+    part_size = 262144
 
     def __init__(self, my_ipv4, my_ipv6, my_port, track_ipv4, track_ipv6, track_port, database, out_lck, print_trigger, download_trigger, download_progress_trigger):
         """
@@ -137,13 +139,11 @@ class Client(object):
             self.session_id = None
             # TODO: fare il check della connessione sulla socket dopo 60'
             self.tracker.close()  # Chiusura della connessione
-            output(self.out_lck, 'Logout completed, parts file downloaded: ' + str(n_parts))
+            output(self.out_lck, 'Logout completed, parts removed from the network: ' + str(n_parts))
             self.print_trigger.emit('Logout completed', '02')
-
-
             self.procedure_lck.release()
         elif response_message[0:4] == "NLOG":
-            output(self.out_lck, 'Logout denied, parts file: ' + str(n_parts) + "/" + str(tot_parts) + "downloaded")
+            output(self.out_lck, 'Logout denied, parts already downloaded by other peers: ' + str(n_parts))
             self.print_trigger.emit('Logout denied', '02')
             self.procedure_lck.release()
         else:
@@ -185,7 +185,7 @@ class Client(object):
 
                             output(self.out_lck, "Adding file " + file.name)
 
-                            len_part = 262144  # 256KB
+                            len_part = self.part_size  # 256KB
                             #ipv4+ipv6 in byte
 
                             ip_concat = self.my_ipv4 + self.my_ipv6
@@ -338,7 +338,7 @@ class Client(object):
                             output(self.out_lck, "No results found for search term: " + ricerca)
                             self.procedure_lck.release()
                         else:
-                            output(self.out_lck, "Select a file to download ('c' to cancel): ")
+                            output(self.out_lck, "\nSelect a file to download ('c' to cancel): ")
                             for idx, file in enumerate(available_files):  # visualizza i risultati della ricerca
                                 output(self.out_lck, str(idx) + ": " + file['name'])
 
@@ -372,7 +372,7 @@ class Client(object):
                             #self.fetch_thread.start()
                             self.fetch(file_to_download)
 
-                            output(self.out_lck, "Start download file?: ")
+                            output(self.out_lck, "\nStart download file?: ")
                             output(self.out_lck, "1: Yes")
                             output(self.out_lck, "2: No")
 
@@ -420,7 +420,7 @@ class Client(object):
 
         n_parts8 = int(math.ceil(float(float(n_parts)/8)))  # 128
 
-        output(self.out_lck, "Fetching parts informations about file " + file['name'])
+        output(self.out_lck, "\nFetching parts informations about file " + file['name'])
         msg = "FCHU" + self.session_id + file['md5']
 
         response_message = None
@@ -585,7 +585,7 @@ class Client(object):
             # while not download_completed:
                 # POOL THREAD PER IL DOWNLOAD DELLE PARTI
                 # 1) Inizio il Thread pool con il numero desiderato di threads
-            pool = ThreadPool(5)
+            pool = ThreadPool(self.parallel_downloads)
 
             download_idx = 0
             threads = 0
@@ -593,7 +593,7 @@ class Client(object):
 
             # while threads < 5 or (len(parts) > download_idx):
             while not downloading:
-                while pool.tasks.qsize() < 5:
+                while pool.tasks.qsize() < self.parallel_downloads:
                     if not parts[download_idx]['downloaded'] or parts[download_idx]['downloaded'] == "false":
                         part_n = parts[download_idx]['n']
 
@@ -696,8 +696,8 @@ class Client(object):
                 n_chunks = int(str(n_chunks).lstrip('0'))  # Rimozione gli 0 dal numero di parti e converte in intero
                 data = ''
                 for i in range(0, n_chunks):
-                    if i == 0:
-                        output(self.out_lck, 'Download started...')
+                    #if i == 0:
+                        #output(self.out_lck, 'Download started...')
                         # self.print_trigger.emit('Download started...', '00')
 
                     try:
@@ -721,7 +721,7 @@ class Client(object):
                         self.print_trigger.emit('Error: ' + e.message, '01')
                         break
 
-                output(self.out_lck, '\nPart ' + str(n_part) + ' completed')
+                #output(self.out_lck, '\nPart ' + str(n_part) + ' completed')
 
                 download.shutdown(1)
                 download.close()

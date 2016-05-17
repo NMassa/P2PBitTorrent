@@ -28,7 +28,7 @@ class Main(QtCore.QThread):
         out_lck = threading.Lock()
         db = MongoConnection(out_lck)
 
-        output(out_lck, "Are you a tracker?")
+        output(out_lck, "\nAre you a tracker?")
         output(out_lck, "1: YES")
         output(out_lck, "2: NO")
 
@@ -65,8 +65,10 @@ class Main(QtCore.QThread):
 
             while client.session_id is None:
                 # print_menu_top(out_lck)
-                output(out_lck, "Select one of the following options ('e' to exit): ")
+                output(out_lck, "\nSelect one of the following options ('e' to exit): ")
                 output(out_lck, "1: Log in                                          ")
+                output(out_lck, "2: Set parallel downloads                          ")
+                output(out_lck, "3: Set part length                                 ")
 
                 int_option = None
                 try:
@@ -91,6 +93,7 @@ class Main(QtCore.QThread):
                             client.login()
 
                             while client.session_id is not None:
+                                output(out_lck, "\nSelect one of the following options ('e' to exit): ")
                                 output(out_lck, "1: Add file                                        ")
                                 output(out_lck, "2: Search file                                     ")
                                 output(out_lck, "3: Log out                                         ")
@@ -119,7 +122,43 @@ class Main(QtCore.QThread):
                                             client.logout()
                                         else:
                                             output(out_lck, "Option " + str(int_option) + " not available")
+                        elif int_option == 2:
+                            output(out_lck, "Insert the number of parallel downloads: ")
 
+                            try:
+                                option = raw_input()
+                            except SyntaxError:
+                                option = None
+
+                            if option is None:
+                                output(out_lck, "Please insert a number")
+                            else:
+                                try:
+                                    int_option = int(option)
+                                except ValueError:
+                                    output(out_lck, "A number is required")
+                                else:
+                                    client.parallel_downloads = int_option
+                                    output(out_lck, "Parallel downloads set to: " + str(int_option))
+
+                        elif int_option == 3:
+                            output(out_lck, "Insert the new part size: ")
+
+                            try:
+                                option = raw_input()
+                            except SyntaxError:
+                                option = None
+
+                            if option is None:
+                                output(out_lck, "Please insert a number")
+                            else:
+                                try:
+                                    int_option = int(option)
+                                except ValueError:
+                                    output(out_lck, "A number is required")
+                                else:
+                                    client.part_size = int_option
+                                    output(out_lck, "Parts size set to: " + str(int_option))
                         else:
                             output(out_lck, "Option " + str(int_option) + " not available")
 
