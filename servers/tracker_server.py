@@ -46,6 +46,7 @@ class Tracker_Server(threading.Thread):
                     # > “LOGI”[4B].IPP2P[55B].PP2P[5B]
                     # > LOGI172.030.008.001|fc00:0000:0000:0000:0000:0000:0008:000106000
                     # < “ALGI”[4B].SessionID[16B]
+
                     ipv4 = cmd[4:19]
                     ipv6 = cmd[20:59]
                     port = cmd[59:64]
@@ -53,6 +54,7 @@ class Tracker_Server(threading.Thread):
                         "<= " + str(self.address[0]) + "  " + cmd[:4] + '  ' + ipv4 + '  ' + ipv6 + '  ' + str(port), "10")
                     # Spazio
                     self.print_trigger.emit("", "10")
+
                     sessionId = self.dbConnect.insert_session(ipv4, ipv6, port)
                     msg = 'ALGI' + sessionId
                     try:
@@ -70,6 +72,7 @@ class Tracker_Server(threading.Thread):
                     # > “LOGO”[4B].SessionID[16B]
                     # 1 < “NLOG”[4B].  # partdown[10B]
                     # 2 < “ALOG”[4B].  # partown[10B]
+
                     session_Id = cmd[4:20]
                     self.print_trigger.emit("<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + session_Id, "10")
 
@@ -110,9 +113,9 @@ class Tracker_Server(threading.Thread):
 
 
                 elif cmd[:4] == 'ADDR':
-                    #IPP2P:RND <> IPT:3000
-                    #> “ADDR”[4B].SessionID[16B].LenFile[10B].LenPart[6B].Filename[100B].Filemd5_i[32B]
-                    #< “AADR”[4B].  # part[8B]
+                    # IPP2P:RND <> IPT:3000
+                    # > “ADDR”[4B].SessionID[16B].LenFile[10B].LenPart[6B].Filename[100B].Filemd5_i[32B]
+                    # < “AADR”[4B].  # part[8B]
 
                     session_id = cmd[4:20]
                     len_file = cmd[20:30]
@@ -149,7 +152,7 @@ class Tracker_Server(threading.Thread):
                 elif cmd[:4] == 'LOOK':
                     # IPP2P:RND <> IPT:3000
                     # > “LOOK”[4B].SessionID[16B].Ricerca[20B]
-                    # < “ALOO”[4B].  # idmd5[3B].{Filemd5_i[32B].Filename_i[100B].LenFile[10B].LenPart[6B]}(i = 1..  # idmd5)
+                    # < “ALOO”[4B].#idmd5[3B].{Filemd5_i[32B].Filename_i[100B].LenFile[10B].LenPart[6B]}(i = 1..  # idmd5)
                     session_id = cmd[4:20]
                     term = cmd[20:40]
 
@@ -180,9 +183,9 @@ class Tracker_Server(threading.Thread):
                         self.print_trigger.emit('Error: ' + e.message, '11')
 
                 elif cmd[:4] == 'FCHU':
-                    #IPP2P:RND <> IPT:3000
-                    #> “FCHU”[4B].SessionID[16B].Filemd5_i[32B]
-                    #< “AFCH”[4B].  # hitpeer[3B].{IPP2P_i[55B].PP2P_i[5B].PartList_i[#part8]}(i = 1..# hitpeer)
+                    # IPP2P:RND <> IPT:3000
+                    # > “FCHU”[4B].SessionID[16B].Filemd5_i[32B]
+                    # < “AFCH”[4B].#hitpeer[3B].{IPP2P_i[55B].PP2P_i[5B].PartList_i[#part8]}(i = 1..# hitpeer)
 
                     # file = {
                     #     "name": "prova.avi",
@@ -205,27 +208,7 @@ class Tracker_Server(threading.Thread):
 
                     hitpeers = self.dbConnect.get_parts(file_md5)
 
-                    #cerco nel db i peer che hanno parti del file richiesto
-                    # hitpeers = [
-                    #     {
-                    #         "ipv4": "172.030.008.001",
-                    #         "ipv6": "fc00:0000:0000:0000:0000:0000:0008:0001",
-                    #         "port": "06000",
-                    #         "part_list": ''.join([random.choice(string.ascii_letters + string.digits) for n in xrange(128)])
-                    #     },
-                    #     {
-                    #         "ipv4": "172.030.008.003",
-                    #         "ipv6": "fc00:0000:0000:0000:0000:0000:0008:0003",
-                    #         "port": "06000",
-                    #         "part_list": ''.join([random.choice(string.ascii_letters + string.digits) for n in xrange(128)])
-                    #     },
-                    #     {
-                    #         "ipv4": "172.030.008.004",
-                    #         "ipv6": "fc00:0000:0000:0000:0000:0000:0008:0004",
-                    #         "port": "06000",
-                    #         "part_list": ''.join([random.choice(string.ascii_letters + string.digits) for n in xrange(128)])
-                    #     }
-                    # ]
+                    # TODO: devo eliminare me stesso dalla lista dei peer
 
                     n_hitpeers = str(len(hitpeers)).zfill(3)
 
@@ -250,7 +233,8 @@ class Tracker_Server(threading.Thread):
                         #print ascii_part_list
 
                         msg += str(peer['ipv4']) + "|" + str(peer['ipv6']) + str(peer['port']) + str(ascii_part_list)
-                        print_msg += "  " + str(peer['ipv4']) + "  " + str(peer['ipv6']) + "  " + str(peer['port']) + "  " + str(ascii_part_list)
+                        print_msg += "  " + str(peer['ipv4']) + "  " + str(peer['ipv6']) + "  " + str(peer['port']) + \
+                                     "  " + str(ascii_part_list)
 
                     try:
                         conn.sendall(msg)
@@ -268,7 +252,7 @@ class Tracker_Server(threading.Thread):
                 elif cmd[:4] == 'RPAD':
                     # IPP2P:RND <> IPT:3000
                     # > “RPAD”[4B].SessionID[16B].Filemd5_i[32B].PartNum[8B]
-                    # < “APAD”[4B].  # Part[8B]
+                    # < “APAD”[4B].#Part[8B]
 
                     session_id = cmd[4:20]
                     md5 = cmd[20:52]
@@ -298,7 +282,6 @@ class Tracker_Server(threading.Thread):
                 else:
                     self.print_trigger.emit("\nError: Command" + cmd + " not recognized", '11')
 
-                #cmd = recvall(conn, self.size)
                 try:
                     cmd = conn.recv(self.size)
                 except socket.error:

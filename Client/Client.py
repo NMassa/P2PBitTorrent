@@ -696,7 +696,7 @@ class Client(object):
             self.print_trigger.emit('Error: ' + e.message, '01')
 
         else:
-            if response_message[:4] == 'ARET':
+            if response_message[:4] == 'AREP':
                 n_chunks = recvall(download, 6)  # Numero di parti del file da scaricare
                 n_chunks = int(str(n_chunks).lstrip('0'))  # Rimozione gli 0 dal numero di parti e converte in intero
                 data = ''
@@ -791,7 +791,7 @@ class Client(object):
 
         self.procedure_lck.acquire()
 
-        msg = "RPAD" + self.session_id + md5 + n_part
+        msg = "RPAD" + self.session_id + md5 + str(n_part).zfill(8)
         response_message = None
 
         try:
@@ -799,7 +799,7 @@ class Client(object):
 
             self.tracker.sendall(msg)
             self.print_trigger.emit('=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' +
-                                    self.session_id + '  ' + md5 + n_part, "00")
+                                    self.session_id + '  ' + md5 + str(n_part), "00")
 
             # Spazio
             self.print_trigger.emit("", "00")
@@ -816,7 +816,7 @@ class Client(object):
         if response_message is None:
             output(self.out_lck, 'No response from tracker. Download failed')
             self.procedure_lck.release()
-        elif response_message[0:4] == 'RPAD':
+        elif response_message[0:4] == 'APAD':
 
             num_part = int(recvall(self.tracker, 8))
 

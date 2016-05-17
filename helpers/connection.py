@@ -37,7 +37,7 @@ class Connection:
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 self.socket.connect((self.ipv4, self.port))                                 # inizializzazione della connessione
-                self.print_trigger.emit("Connected to: " + self.ipv4 + " " + str(self.port), self.print_mode + "2")
+                # self.print_trigger.emit("Connected to: " + self.ipv4 + " " + str(self.port), self.print_mode + "2")
             except socket.error, msg:
                 self.print_trigger.emit("Connection Error: %s" % msg, self.print_mode + "1")
 
@@ -46,7 +46,7 @@ class Connection:
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 self.socket.connect((self.ipv6, self.port))                                 # inizializzazione della connessione
-                self.print_trigger.emit("Connected to: " + self.ipv6 + " " + str(self.port), self.print_mode + "2")
+                # self.print_trigger.emit("Connected to: " + self.ipv6 + " " + str(self.port), self.print_mode + "2")
             except socket.error, msg:
                 self.print_trigger.emit("Connection Error: %s" % msg, self.print_mode + "1")
 

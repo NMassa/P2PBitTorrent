@@ -95,10 +95,10 @@ class Peer_Server(threading.Thread):
 
                         requested_part = None
 
-                        for root, dirs, files in os.walk("received/temp/"):
+                        for root, dirs, files in os.walk("./received/temp/"):
                             for file in files:
                                 if file == (db_file['name'] + '.%08d' % part_num):
-                                    requested_part_file = open(db_file['name'] + '.%08d' % part_num)
+                                    requested_part_file = open("./received/temp/" + db_file['name'] + '.%08d' % part_num)
                                     requested_part = requested_part_file.read(partsize)
 
                     if requested_part:
@@ -115,7 +115,7 @@ class Peer_Server(threading.Thread):
 
                             buff = requested_part[offset: offset + chunk_size]  # Lettura del primo chunk
 
-                            msg = 'ARET' + str(n_chunks).zfill(
+                            msg = 'AREP' + str(n_chunks).zfill(
                                 6)  # Risposta alla richiesta di download, deve contenere ARET ed il numero di chunks che saranno inviati
 
                             conn.sendall(msg)
