@@ -93,9 +93,9 @@ class MongoConnection():
             source = self.db.sessions.find_one({"session_id": sessionID})
             files = self.db.files.find({'peers.session_id': sessionID})
         except Exception as e:
-            output(self.out_lck, "Database Error > remove_session: " + e.message)
+            print "Database Error > remove_session: " + e.message
             self.db_lck.release()
-
+            return False
         if files is None:
             self.db.sessions.remove({'session_id': sessionID})
             self.db_lck.release()
@@ -103,28 +103,34 @@ class MongoConnection():
         else:
             lista_file = list(files)
             for i in range(len(lista_file)):  # ciclo numero di file
+                # estraggo la part_list del file i-esimo del utente che vuole fare logout
+                myfile_list = self.db.files.find_one({'md5': lista_file[i]['md5']},
+                                                     {'peers': {"$elemMatch": {'session_id': sessionID}},
+                                                      '_id': 0})
                 index2 = lista_file[i]
                 # print index2['name']
                 index_peer = index2['peers']
                 n_parts = int(math.ceil(float(index2['len_file']) / float(index2['len_part'])))
                 parts = []
-                for j in range(0, n_parts):  # ciclo paerti del file
-                    is_available = False
-                    for peer in range(len(index_peer)):  # ciclo numero di peer
-                        if index_peer[peer]['ipv4'] == source['ipv4']:
-                            pass
-                        else:
-                            if index_peer[peer]['part_list'][j] == '1':
-                                # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + " " + str(j)
-                                is_available = True
-                                break
+                for j in range(0, n_parts - 1):  # ciclo parti del file
+                    if myfile_list['peers'][0]['part_list'][j] == '1':  # controllo solo le parti che posseggo
+                        # print myfile_list['peers'][0]['part_list'][j] mostro i mmiei bit
+                        is_available = False
+                        for peer in range(len(index_peer)):  # ciclo numero di peer
+                            if index_peer[peer]['ipv4'] == source['ipv4']:
+                                pass
                             else:
-                                # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + " " + str(j)
-                                is_available = False
-                    if is_available:
-                        parts.append('1')  # parte presente
-                    else:
-                        parts.append('0')
+                                if index_peer[peer]['part_list'][j] == '1':
+                                    # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + " " + str(j)
+                                    is_available = True
+                                    break
+                                else:
+                                    # print index_peer[peer]['part_list'][j] + " : " + index_peer[peer]['ipv4'] + " " + str(j)
+                                    is_available = False
+                        if is_available:
+                            parts.append('1')  # parte presente
+                        else:
+                            parts.append('0')
                 if '0' in parts:
                     self.db_lck.release()
                     # print "parti mancanti"
@@ -132,8 +138,15 @@ class MongoConnection():
                     break
                 else:
                     # TODO: da provare
-                    self.db.files.update({'md5', lista_file[i]['md5']}, {'$pull': {'peers': {'session_id': sessionID}}})
-                    pass
+                    try:
+                        print lista_file[i]['md5']
+                        self.db.files.update({'md5': lista_file[i]['md5']},
+                                             {"$pull": {'peers': {'session_id': sessionID}}})
+                        pass
+                    except Exception as e:
+                        print "Database Error > update file in remuve_session: " + e.message
+                        self.db_lck.release()
+                        return False
             self.db.sessions.remove({'session_id': sessionID})
             # TODO: eliminare sessione e part_list
             # db.getCollection('hitpeers').update({"md5": "md51"}, {'$pull': {"ipv4": { '$in': ["aaa"]}}})
