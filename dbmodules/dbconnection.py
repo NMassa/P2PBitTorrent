@@ -538,3 +538,59 @@ class MongoConnection():
                 tot += int(math.ceil(float(index2['len_file']) / float(index2['len_part'])))
             self.db_lck.release()
             return tot
+
+    def new_remove_session(self, sessionID):
+        self.db_lck.acquire()
+        tot_part_down = 0
+        tot_part_own = 0
+        logout = True
+        try:
+            source = self.db.sessions.find_one({"session_id": sessionID})
+            files = self.db.files.find({'peers.session_id': sessionID})
+        except Exception as e:
+            print "Database Error > remove_session: " + e.message
+            self.db_lck.release()
+            return False
+        if files is None:
+            self.db.sessions.remove({'session_id': sessionID})
+            self.db_lck.release()
+            return True
+        else:
+            lista_file = list(files)
+            for i in range(len(lista_file)):  # ciclo numero di file
+                # estraggo la part_list del file i-esimo del utente che vuole fare logout
+                my_file_list = self.db.files.find_one({'md5': lista_file[i]['md5']},
+                                                      {'peers': {"$elemMatch": {'session_id': sessionID}}, '_id': 0})
+                index_peer = lista_file[i]['peers']  # lista dei peer del file
+                n_parts = int(math.ceil(float(lista_file[i]['len_file']) / float(lista_file[i]['len_part'])))
+                parts_own = []
+                parts_down = []
+                for j in range(0, n_parts - 1):  # ciclo parti del file
+                    if my_file_list['peers'][0]['part_list'][j] == '1':  # controllo solo le parti che posseggo
+                        parts_own.append('1')
+                        for peer in range(len(index_peer)):  # ciclo numero di peer
+                            if index_peer[peer]['ipv4'] == source['ipv4']:
+                                pass
+                            else:
+                                if index_peer[peer]['part_list'][j] == '1':
+                                    is_available = True
+                                    break
+                                else:
+                                    is_available = False
+                        if is_available:
+                            parts_down.append('1')  # parte presente
+                        else:
+                            parts_down.append('0')
+                tot_part_down += parts_down.count('1')
+                tot_part_own += parts_own.count('1')
+                if '0' in parts_down:
+                    logout = False
+            if logout and (tot_part_down == tot_part_own):
+                for i in range(len(lista_file)):
+                    self.db.files.update({'md5': lista_file[i]['md5']}, {"$pull": {'peers': {'session_id': sessionID}}})
+                self.db.sessions.remove({'session_id': sessionID})
+                self.db_lck.release()
+                return "T" + str(tot_part_own).zfill(10)
+            else:
+                self.db_lck.release()
+                return "F" + str(tot_part_down).zfill(10)

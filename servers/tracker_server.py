@@ -76,13 +76,13 @@ class Tracker_Server(threading.Thread):
                     # Spazio
                     self.print_trigger.emit("", "10")
 
-                    delete = self.dbConnect.remove_session(session_Id)
-                    if delete is True:
+                    delete = self.dbConnect.new_remove_session(session_Id)
+                    if delete[0] is 'T':
                         print "logout"
                         # logout concesso
                         # TODO: finire
-                        partown = self.dbConnect.get_number_partown(session_Id)
-                        msg = "ALOG" + str(partown).zfill(8)
+                        partown = delete[1:11]
+                        msg = "ALOG" + str(partown).zfill(10)
                         try:
                             conn.send(msg)
                             # TODO: da finire la funzione che conta le parti
@@ -96,8 +96,8 @@ class Tracker_Server(threading.Thread):
                     else:
                         print "not logout"
                         # logout non concesso
-                        partdown = self.dbConnect.get_number_partdown(session_Id)
-                        msg = "NLOG" + str(partdown).zfill(8)
+                        partdown = delete[1:11]
+                        msg = "NLOG" + str(partdown).zfill(10)
                         try:
                             conn.send(msg)
                             self.print_trigger.emit("=> " + "NLOG" + " " + str(partdown).zfill(8), "12")
