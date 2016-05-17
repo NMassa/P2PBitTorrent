@@ -142,8 +142,6 @@ class MongoConnection():
             self.db_lck.release()
             return True
 
-
-
     def get_parts(self, md5):
         """
             Restituisce una lista di peer con ip+porta e la stringa delle parti possedute

@@ -199,7 +199,7 @@ class Tracker_Server(threading.Thread):
                     file_md5 = cmd[20:52]
 
                     self.print_trigger.emit(
-                        "<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + session_id +" " + file_md5, "10")
+                        "<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + session_id + " " + file_md5, "10")
                     # Spazio
                     self.print_trigger.emit("", "10")
 
