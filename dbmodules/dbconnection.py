@@ -129,15 +129,20 @@ class MongoConnection():
                     self.db_lck.release()
                     # print "parti mancanti"
                     return False
-                else:
-                    self.db_lck.release()
-                    return True
                     break
+                else:
+                    # TODO: da provare
+                    self.db.files.update({'md5', lista_file[i]['md5']}, {'$pull': {'peers': {'session_id': sessionID}}})
+                    pass
             self.db.sessions.remove({'session_id': sessionID})
             # TODO: eliminare sessione e part_list
-            #db.getCollection('hitpeers').update({"md5": "md51"}, {'$pull': {"ipv4": { '$in': ["aaa"]}}})
+            # db.getCollection('hitpeers').update({"md5": "md51"}, {'$pull': {"ipv4": { '$in': ["aaa"]}}})
+            # db.files.update({'md5': md5}, {$unset: {'peers.$.part_list': 0}}) funziona 16-5
+            # db.getCollection('hitpeers').update({'md5': "md51"}, {$pull: {'ipv4': {'a':"aa"}}})
             self.db_lck.release()
             return True
+
+
 
     def get_parts(self, md5):
         """
@@ -209,25 +214,12 @@ class MongoConnection():
             output(self.out_lck, "Database Error > insert_peer: " + e.message)
             self.db_lck.release()
 
-        if file is not None:
-            pass
-            # update
-            #try:
-                # str_part ="\xff\xff\xff\xff"
-                #str_part = chr(int("11111111", 2))
-                #peer = self.db.sessions.find_one({"session_id": sessionID})
-                #self.db.files.update({"md5": md5},
-                                     #{"$push": {"peers": [{"session_id": sessionID, "part_list": str_part}]}})
-                # self.db.files.update({"md5": md5}, {"$addToSet": {"peers": {"session_id": sessionID, "part_list": str_part}}})
-            #except Exception as e:
-                #output(self.out_lck, "Database Error > insert_peer: " + e.message)
-                #self.db_lck.release()
-        else:
-            # insert
+        if file is None:
+            # insert new file
             try:
                 n_parts = int(math.ceil(float(LenFile) / float(LenPart)))
                 str_part = ""
-                for i in range(1, n_parts):
+                for i in range(0, n_parts):
                     str_part = str_part + "1"
 
                 peer = self.db.sessions.find_one({"session_id": sessionID})
@@ -237,6 +229,22 @@ class MongoConnection():
                                           'peers': [
                                               {'session_id': sessionID, 'ipv4': peer['ipv4'], 'ipv6': peer['ipv6'],
                                                'port': peer['port'], 'part_list': str_part}]})
+                self.db_lck.release()
+            except Exception as e:
+                output(self.out_lck, "Database Error > insert_peer: " + e.message)
+                self.db_lck.release()
+        else:
+            try:
+                output(self.out_lck, "Database Error > insert_peer exist")
+                # update new source
+                n_parts = int(math.ceil(float(LenFile) / float(LenPart)))
+                str_part = ""
+                for i in range(0, n_parts):
+                    str_part = str_part + "1"
+                peer = self.db.sessions.find_one({"session_id": sessionID})
+                self.db.filesupdate({'md5': md5}, {'$push': {'peers': {'session_id': sessionID, 'ipv4': peer['ipv4'],
+                                                                       'ipv6': peer['ipv6'], 'port': peer['port'],
+                                                                       'part_list': str_part}}})
                 self.db_lck.release()
             except Exception as e:
                 output(self.out_lck, "Database Error > insert_peer: " + e.message)
@@ -277,10 +285,14 @@ class MongoConnection():
     def insert_file(self, name, md5, len_file, len_part):
         self.db_lck.acquire()
         try:
-            self.db.files.insert_one({"name": name,
-                                      "md5": md5,
-                                      "len_file": len_file,
-                                      "len_part": len_part})
+            file = self.db.files.find_one({"md5": md5})
+            if file is not None:
+                self.db.files.insert_one({"name": name,
+                                          "md5": md5,
+                                          "len_file": len_file,
+                                          "len_part": len_part})
+            else:
+                self.db.files.update({"md5": md5}, {'$set': {"len_file": len_file, "len_part": len_part}})
         except Exception as e:
             output(self.out_lck, "Database Error > insert_file: " + e.message)
             self.db_lck.release()

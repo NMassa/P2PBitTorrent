@@ -121,7 +121,6 @@ class Tracker_Server(threading.Thread):
                     md5 = cmd[136:168]
 
                     num_part = int(math.ceil(float(len_file)/float(len_part)))
-                    response = cmd[:4] + str(num_part).zfill(8)
 
                     self.print_trigger.emit(
                         "<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + session_id + "  " + len_file + "  " +
@@ -136,6 +135,7 @@ class Tracker_Server(threading.Thread):
 
                     try:
                         conn.sendall(response)
+                        self.print_trigger.emit("=> " + "AADR" + " " + str(num_part).zfill(8), "12")
 
                     except socket.error, msg:
                         self.print_trigger.emit('Socket Error: ' + str(response), '11')
@@ -235,7 +235,7 @@ class Tracker_Server(threading.Thread):
                     for peer in hitpeers:
                         ascii_part_list = ""
                         n = 8
-                        parts_8 = [peer['part_list'][i:i+n] for i in range(0, len(peer['part_list']), n)]
+                        parts_8 = [peer['part_list'][i:i+n] for i in range(0, len(peer['part_list'])+1, n)]
 
                         #
                         # L'ultima parte può essere più corta quindi vanno aggiunti degli zeri alla fine, altrimenti python
