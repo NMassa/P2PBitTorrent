@@ -49,9 +49,9 @@ class Client(object):
                 self.files_list.append(new_file)
 
     def login(self):
-        #IPP2P:RND <> IPT:3000
-        #> “LOGI”[4B].IPP2P[55B].PP2P[5B]
-        #< “ALGI”[4B].SessionID[16B]
+        # IPP2P:RND <> IPT:3000
+        # > “LOGI”[4B].IPP2P[55B].PP2P[5B]
+        # < “ALGI”[4B].SessionID[16B]
 
         self.procedure_lck.acquire()
 
@@ -68,22 +68,24 @@ class Client(object):
             self.tracker = c.socket
 
             self.tracker.send(msg)  # Richiesta di login
+
             self.print_trigger.emit(
                 '=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' + self.my_ipv4 + '  ' +
                 self.my_ipv6 + '  ' + str(self.my_port).zfill(5), "00")
-
-            # Spazio
-            self.print_trigger.emit("", "00")
+            self.print_trigger.emit("", "00")  # Space
 
             response_message = recvall(self.tracker, 20)  # Risposta della directory, deve contenere ALGI e il session id
             self.print_trigger.emit(
                 '<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4] + '  ' + response_message[4:20],
                 '02')
+            self.print_trigger.emit("", "00")  # Space
 
         except socket.error, msg:
             self.print_trigger.emit('Socket Error: ' + str(msg), '01')
+            self.print_trigger.emit("", "00")
         except Exception as e:
             self.print_trigger.emit('Error: ' + e.message, '01')
+            self.print_trigger.emit("", "00")  # Space
 
         if response_message is None:
             output(self.out_lck, 'No response from tracker. Login failed')
@@ -95,14 +97,14 @@ class Client(object):
             else:
                 output(self.out_lck, 'Session ID assigned by the directory: ' + self.session_id)
                 output(self.out_lck, 'Login completed')
-                self.print_trigger.emit('Login completed', '02')
+
             self.procedure_lck.release()
 
     def logout(self):
-        #IPP2P:RND <> IPT:3000
-        #> “LOGO”[4B].SessionID[16B]
-        #1 < “NLOG”[4B].  # partdown[10B]
-        #2 < “ALOG”[4B].  # partown[10B]
+        # IPP2P:RND <> IPT:3000
+        # > “LOGO”[4B].SessionID[16B]
+        # 1 < “NLOG”[4B].  # partdown[10B]
+        # 2 < “ALOG”[4B].  # partown[10B]
 
         self.procedure_lck.acquire()
 
@@ -114,11 +116,10 @@ class Client(object):
             self.check_connection()
 
             self.tracker.send(msg)  # Richeista di logout
+
             self.print_trigger.emit('=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' + self.session_id,
                                     "00")
-
-            # Spazio
-            self.print_trigger.emit("", "00")
+            self.print_trigger.emit("", "00")  # Space
 
             response_message = recvall(self.tracker, 14)
             n_parts = response_message[4:14]
@@ -127,11 +128,14 @@ class Client(object):
             self.print_trigger.emit(
                 '<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4] + '  ' + n_parts,
                 '02')
+            self.print_trigger.emit("", "00")  # Space
 
         except socket.error, msg:
             self.print_trigger.emit('Socket Error: ' + str(msg), '01')
+            self.print_trigger.emit("", "00")  # Space
         except Exception as e:
             self.print_trigger.emit('Error: ' + e.message, '01')
+            self.print_trigger.emit("", "00")  # Space
 
         if response_message is None:
             output(self.out_lck, 'No response from tracker. Login failed')
@@ -140,16 +144,13 @@ class Client(object):
             self.session_id = None
             # TODO: fare il check della connessione sulla socket dopo 60'
             self.tracker.close()  # Chiusura della connessione
-            output(self.out_lck, 'Logout completed, parts removed from the network: ' + str(n_parts))
-            self.print_trigger.emit('Logout completed', '02')
+            output(self.out_lck, 'Logout completed, parts removed from the network: ' + str(n_parts))            
             self.procedure_lck.release()
         elif response_message[0:4] == "NLOG":
             output(self.out_lck, 'Logout denied, parts already downloaded by other peers: ' + str(n_parts))
-            self.print_trigger.emit('Logout denied', '02')
             self.procedure_lck.release()
         else:
             output(self.out_lck, 'Error: unknown response from tracker.\n')
-            self.print_trigger.emit('Error: unknown response from tracker.', '01')
             self.procedure_lck.release()
 
     def share(self):
@@ -166,7 +167,7 @@ class Client(object):
                 output(self.out_lck, str(idx) + ": " + file.name)
 
             try:
-                option = raw_input()  # Selezione del file da condividere tra quelli disponibili (nella cartella shareable)
+                option = raw_input()
             except SyntaxError:
                 option = None
 
@@ -187,11 +188,9 @@ class Client(object):
                             output(self.out_lck, "Adding file " + file.name)
 
                             len_part = self.part_size  # 256KB
-                            #ipv4+ipv6 in byte
 
                             ip_concat = self.my_ipv4 + self.my_ipv6
                             bytes_ip = str.encode(ip_concat)
-                            #my_decoded_str = str.decode(bytes)
 
                             LenFile = str(os.path.getsize(self.path+"/"+file.name)).zfill(10)
                             LenPart = str(len_part).zfill(6)
@@ -210,21 +209,24 @@ class Client(object):
                                     '=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' + self.session_id +
                                     '  ' + str(LenFile).strip("") + '  ' + str(LenPart).strip("") + '  ' + str(FileName).strip("") +
                                     '  ' + str(Filemd5_i).strip(""), "00")
-
-                                # Spazio
-                                self.print_trigger.emit("", "00")
+                                self.print_trigger.emit("", "00")  # Space
 
                                 response_message = recvall(self.tracker, 4)
                             except socket.error, msg:
-                                # output(self.out_lck, 'Socket Error: ' + str(msg))
                                 self.print_trigger.emit('Socket Error: ' + str(msg), '01')
+                                self.print_trigger.emit("", "00")  # Space
                             except Exception as e:
-                                # output(self.out_lck, 'Error: ' + e.message)
                                 self.print_trigger.emit('Error: ' + e.message, '01')
+                                self.print_trigger.emit("", "00")  # Space
 
                             if response_message[:4] == 'AADR':
 
                                 part_n = int(recvall(self.tracker, 8))
+                                self.print_trigger.emit(
+                                    '<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4] + '  ' +
+                                    str(part_n), '02')
+                                self.print_trigger.emit("", "00")  # Space
+
                                 output(self.out_lck, "File successfully shared, parts: " + str(part_n))
 
                                 # Salvo file condiviso sul database
@@ -232,7 +234,6 @@ class Client(object):
 
                             else:
                                 output(self.out_lck, 'Error: unknown response from tracker.\n')
-                                self.print_trigger.emit('Error: unknown response from tracker.', '01')
 
                     if not found:
                         output(self.out_lck, 'Option not available')
@@ -262,6 +263,7 @@ class Client(object):
         msg = 'LOOK' + self.session_id + ricerca.ljust(20)
 
         response_message = None
+        printable_response = None
         try:
             self.check_connection()
 
@@ -269,21 +271,16 @@ class Client(object):
             self.print_trigger.emit(
                 '=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' + self.session_id +
                 '  ' + ricerca.ljust(20), "00")
-
-            # Spazio
-            self.print_trigger.emit("", "00")
+            self.print_trigger.emit("", "00")  # Space
 
             response_message = recvall(self.tracker, 4)
-
-            self.print_trigger.emit(
-                '<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4],
-                '02')
+            printable_response = response_message + '  '
         except socket.error, msg:
-            # output(self.out_lck, 'Socket Error: ' + str(msg))
             self.print_trigger.emit('Socket Error: ' + str(msg), '01')
+            self.print_trigger.emit("", "00")  # Space
         except Exception as e:
-            # output(self.out_lck, 'Error: ' + e.message)
             self.print_trigger.emit('Error: ' + e.message, '01')
+            self.print_trigger.emit("", "00")  # Space
 
         if response_message is None:
             output(self.out_lck, 'No response from tracker. Look failed')
@@ -296,14 +293,17 @@ class Client(object):
 
             except socket.error as e:
                 self.print_trigger.emit('Socket Error: ' + str(msg), '01')
+                self.print_trigger.emit("", "00")  # Space
             except Exception as e:
                 self.print_trigger.emit('Error: ' + str(msg), '01')
+                self.print_trigger.emit("", "00")  # Space
 
             if idmd5 is None:
                 output(self.out_lck, 'idmd5 is blank.')
                 self.procedure_lck.release()
             else:
                 try:
+                    printable_response += idmd5 + '  '
                     idmd5 = int(idmd5)
                 except ValueError:
                     output(self.out_lck, "idmd5 is not a number")
@@ -318,11 +318,14 @@ class Client(object):
                             for idx in range(0, idmd5):  # Per ogni identificativo diverso si ricevono:
                                 # md5, nome del file, numero di copie, elenco dei peer che l'hanno condiviso
 
-                                file_i_md5 = recvall(self.tracker, 32)  # md5 dell'i-esimo file (32 caratteri)
-                                file_i_name = recvall(self.tracker,
-                                    100).strip()  # nome dell'i-esimo file (100 caratteri compresi spazi)
+                                file_i_md5 = recvall(self.tracker, 32)
+                                printable_response += file_i_md5 + '  '
+                                file_i_name = recvall(self.tracker, 100).strip()
+                                printable_response += file_i_name + '  '
                                 len_file_i = recvall(self.tracker, 10)
+                                printable_response += len_file_i + '  '
                                 len_part_i = recvall(self.tracker, 6)
+                                printable_response += len_part_i + '  '
 
                                 available_files.append({"name": file_i_name,
                                                         "md5": file_i_md5,
@@ -334,6 +337,10 @@ class Client(object):
                             output(self.out_lck, 'Socket Error: ' + str(msg))
                         except Exception as e:
                             output(self.out_lck, 'Error: ' + e.message)
+
+                        self.print_trigger.emit(
+                            '<= ' + str(self.tracker.getpeername()[0]) + '  ' + printable_response, '02')
+                        self.print_trigger.emit("", "00")  # Space
 
                         if len(available_files) == 0:
                             output(self.out_lck, "No results found for search term: " + ricerca)
@@ -364,11 +371,9 @@ class Client(object):
                             file_to_download = available_files[
                                 selected_file]  # Recupero del file selezionato dalla lista dei risultati
 
-
                             self.procedure_lck.release()
 
                             # Avvio un thread che esegue la fetch ogni 60(10) sec
-                            #self.fetch_thread = threading.Timer(10, self.fetch(file_to_download))
                             #self.fetch_thread = threading.Timer(10, self.fetch(file_to_download))
                             #self.fetch_thread.start()
                             self.fetch(file_to_download)
@@ -409,7 +414,6 @@ class Client(object):
 
         else:
             output(self.out_lck, 'Error: unknown response from tracker.\n')
-            self.print_trigger.emit('Error: unknown response from tracker.', '01')
             self.procedure_lck.release()
 
     def fetch(self, file):
@@ -428,174 +432,155 @@ class Client(object):
         msg = "FCHU" + self.session_id + file['md5']
 
         response_message = None
+        printable_response = None
         try:
             self.check_connection()
 
             self.tracker.sendall(msg)
             self.print_trigger.emit('=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' +
                                     self.session_id + '  ' + file['md5'], "00")
-
-            # Spazio
-            self.print_trigger.emit("", "00")
+            self.print_trigger.emit("", "00")  # Space
 
             response_message = recvall(self.tracker, 4)
-            self.print_trigger.emit('<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4], '02')
+            printable_response = response_message + '  '
 
         except socket.error, msg:
             self.print_trigger.emit('Socket Error: ' + str(msg), '01')
-
+            self.print_trigger.emit("", "00")  # Space
         except Exception as e:
             self.print_trigger.emit('Error: ' + e.message, '01')
+            self.print_trigger.emit("", "00")  # Space
 
         if response_message is None:
             output(self.out_lck, 'No response from tracker. Fetch failed')
             self.procedure_lck.release()
             self.fetching = False
+
         elif response_message[0:4] == 'AFCH':
+            n_hitpeers = recvall(self.tracker, 3)
+            try:
+                printable_response += n_hitpeers + '  '
+                n_hitpeers = int(n_hitpeers)
+            except ValueError:
+                output(self.out_lck, "n_hitpeers is not a number")
+            else:
+                if n_hitpeers is not None and n_hitpeers > 0:
+                    hitpeers = []
 
-            n_hitpeers = int(recvall(self.tracker, 3))
+                    for i in range(0, n_hitpeers):
+                        hitpeer_ipv4 = recvall(self.tracker, 16).replace("|", "")
+                        printable_response += hitpeer_ipv4 + '  '
+                        hitpeer_ipv6 = recvall(self.tracker, 39)
+                        printable_response += hitpeer_ipv6 + '  '
+                        hitpeer_port = recvall(self.tracker, 5)
+                        printable_response += hitpeer_port + '  '
+                        hitpeer_partlist = recvall(self.tracker, n_parts8)
+                        printable_response += hitpeer_partlist + '  '
 
-            if n_hitpeers is not None and n_hitpeers > 0:
-                hitpeers = []
+                        hitpeers.append({
+                            "ipv4": hitpeer_ipv4,
+                            "ipv6": hitpeer_ipv6,
+                            "port": hitpeer_port,
+                            "part_list": hitpeer_partlist
+                        })
 
-                for i in range(0, n_hitpeers):
-                    hitpeer_ipv4 = recvall(self.tracker, 16).replace("|", "")
-                    hitpeer_ipv6 = recvall(self.tracker, 39)
-                    hitpeer_port = recvall(self.tracker, 5)
-                    hitpeer_partlist = recvall(self.tracker, n_parts8)
+                    self.print_trigger.emit('<= ' + str(self.tracker.getpeername()[0]) + '  ' + printable_response, '02')
+                    self.print_trigger.emit("", "00")  # Space
 
-                    hitpeers.append({
-                        "ipv4": hitpeer_ipv4,
-                        "ipv6": hitpeer_ipv6,
-                        "port": hitpeer_port,
-                        "part_list": hitpeer_partlist
-                    })
+                    if hitpeers:
+                        # cerco la tabella delle parti di cui fare il download se non esiste la creo
 
-                if hitpeers:
-                    # cerco la tabella delle parti di cui fare il download se non esiste la creo
+                        download = self.dbConnect.get_download(file['md5'])
 
-                    download = self.dbConnect.get_download(file['md5'])
+                        if download:
+                            parts = download['parts']
+                        else:
+                            self.dbConnect.insert_download(file['name'], file['md5'], file['len_file'], file['len_part'])
+                            parts = []
 
-                    if download:
-                        parts = download['parts']
-                    else:
-                        self.dbConnect.insert_download(file['name'], file['md5'], file['len_file'], file['len_part'])
-                        parts = []
+                        # scorro i risultati della FETCH ed aggiorno la lista delle parti in base alla disponibilità
+                        for hp in hitpeers:
+                            part_count = 0
+                            # VALIDO PER part_list salvata come stringa di caratteri ASCII
 
-                    # scorro i risultati della FETCH ed aggiorno la lista delle parti in base alla disponibilità
-                    for hp in hitpeers:
-                        part_count = 0
-                        # VALIDO PER part_list salvata come stringa di caratteri ASCII
+                            for c in hp['part_list']:
+                                bits = bin(ord(c)).replace("0b", "").replace("b", "").zfill(8)  # Es: 0b01001101
+                                for bit in bits:
 
-                        for c in hp['part_list']:
-                            bits = bin(ord(c)).replace("0b", "").replace("b", "").zfill(8)  # Es: 0b01001101
-                            for bit in bits:
+                                    if int(bit) == 1:  # se la parte è disponibile
+                                        part = [part for part in parts if part['n'] == part_count]
 
-                                if int(bit) == 1:  # se la parte è disponibile
-                                    part = [part for part in parts if part['n'] == part_count]
+                                        if len(part) > 0:
+                                            peers = parts[part_count-1]['peers'] if parts[part_count-1]['peers'] is not None else []
 
-                                    if len(part) > 0:
-                                        peers = parts[part_count-1]['peers'] if parts[part_count-1]['peers'] is not None else []
+                                            exists = [True for peer in peers if (peer['ipv4'] == hp['ipv4']) or (peer['ipv6'] == hp['ipv6'])]
 
-                                        exists = [True for peer in peers if (peer['ipv4'] == hp['ipv4']) or (peer['ipv6'] == hp['ipv6'])]
+                                            if not exists:
+                                                peers.append({
+                                                             "ipv4": hp['ipv4'],
+                                                             "ipv6": hp['ipv6'],
+                                                             "port": hp['port']
+                                                         })
 
-                                        if not exists:
+                                                parts[part_count - 1]['occ'] = int(parts[part_count - 1]['occ']) + 1
+
+                                            parts[part_count-1]['peers'] = peers
+                                        else:
+                                            peers = []
                                             peers.append({
                                                          "ipv4": hp['ipv4'],
                                                          "ipv6": hp['ipv6'],
                                                          "port": hp['port']
                                                      })
-
-                                            parts[part_count - 1]['occ'] = int(parts[part_count - 1]['occ']) + 1
-
-                                        parts[part_count-1]['peers'] = peers
-                                    else:
-                                        peers = []
-                                        peers.append({
-                                                     "ipv4": hp['ipv4'],
-                                                     "ipv6": hp['ipv6'],
-                                                     "port": hp['port']
+                                            parts.append({
+                                                     "n": part_count,
+                                                     "occ": 1,
+                                                     "downloaded": "false",
+                                                     "peers": peers
                                                  })
-                                        parts.append({
-                                                 "n": part_count,
-                                                 "occ": 1,
-                                                 "downloaded": "false",
-                                                 "peers": peers
-                                             })
 
-                                    part_count += 1
-                                else:
-                                    part_count += 1
+                                        part_count += 1
+                                    else:
+                                        part_count += 1
 
-                    # ordino la lista delle parti in base alle occorrenze in modo crescente
-                    sorted_parts = sorted(parts, key=lambda k: k['occ'])
+                        # ordino la lista delle parti in base alle occorrenze in modo crescente
+                        sorted_parts = sorted(parts, key=lambda k: k['occ'])
 
-                    # aggiorno la lista già ordinata
-                    self.dbConnect.update_download_parts(file['md5'], sorted_parts)
+                        # aggiorno la lista già ordinata
+                        self.dbConnect.update_download_parts(file['md5'], sorted_parts)
 
-                    # self.dbConnect.download.update_one({"md5": file['md5']},
-                    #                                    {
-                    #                                         "$set": {"parts": sorted_parts}
-                    #                                    })
+                        output(self.out_lck, "Part table updated, fetch succeeded.")
+                        self.fetching = False
+                        self.procedure_lck.release()
 
-                    output(self.out_lck, "Part table updated, fetch succeeded.")
+                else:
+                    output(self.out_lck, 'No peers found.\n')
                     self.fetching = False
                     self.procedure_lck.release()
-
-            else:
-                output(self.out_lck, 'No peers found.\n')
-                self.print_trigger.emit('No peers found.\n', '01')
-                self.fetching = False
-                self.procedure_lck.release()
         else:
             output(self.out_lck, 'Error: unknown response from tracker.\n')
-            self.print_trigger.emit('Error: unknown response from tracker.', '01')
             self.fetching = False
             self.procedure_lck.release()
 
     def get_file(self, md5, file_name, len_file, len_part):
 
-        #aspetto che la fetch abbia terminato
+        # Aspetto che la fetch abbia terminato
         while self.fetching:
-            time.sleep(1) # 1 sec
+            time.sleep(1)
 
-        # inserisco il file nel database in modo che le parti siano disponibili al download degli altri peer
+        # Inserisco il file nel database in modo che le parti siano disponibili al download degli altri peer
         self.dbConnect.insert_file(file_name, md5, len_file, len_part)
-
-        # file_exists = False
-        # for root, dirs, files in os.walk(self.path):
-        #     for file in files:
-        #         if file == (md5 + ".json"):
-        #             file_exists = True
-
-        # recupero le parti eventualmente gia scaricate
-        # if file_exists:
-        #     part_file = open(self.path + "/" + md5 + ".json", "rb+")
-        # else:
-        #     part_file = open(self.path + "/" + md5 + ".json", "wb+")
-        #     part_file.close()
-        #     part_file = open(self.path + "/" + md5 + ".json", "rb+")
-        #
-        # downloaded_parts = {}
-        # try:
-        #     downloaded_parts = json.load(part_file)
-        # except Exception as e:
-        #     self.print_trigger.emit('Error: ' + e.message, '01')
 
         parts_table = self.dbConnect.get_download(md5)
 
         if parts_table:
             parts = parts_table['parts']
 
-            download_completed = False
-
-            # while not download_completed:
             # POOL THREAD PER IL DOWNLOAD DELLE PARTI
             # 1) Inizio il Thread pool con il numero desiderato di threads
             self.pool = ThreadPool(self.parallel_downloads)
 
             download_idx = 0
-            threads = 0
             completed = self.dbConnect.downloading(md5)
 
             # while threads < 5 or (len(parts) > download_idx):
@@ -635,6 +620,8 @@ class Client(object):
 
         self.download_progress_trigger.emit(100, file_name)
 
+        output(self.out_lck, "Donwload completed")
+
     def download(self, md5, n_part, file_name):
         # IPP2P:RND <> IPP2P:PP2P
         # > “RETP”[4B].Filemd5_i[32B].PartNum[8B]
@@ -654,17 +641,14 @@ class Client(object):
                                           "0")  # Inizializzazione della connessione verso il peer
                 c.connect()
                 download = c.socket
-            # except socket.error, msg:
-            #     download = None
-            #     self.print_trigger.emit('Socket Error: ' + str(msg), '01')
-            except Exception as e:
+
+            except socket.error, msg:
                 download = None
-                #self.print_trigger.emit('Error: ' + e.message, '01')
 
         if download is None:
-            output(self.out_lck, "Error: Non available connections for part " + str(n_part))
+            output(self.out_lck, "Error: No available connections for part " + str(n_part))
         else:
-            output(self.out_lck, "Downloading part " + str(n_part) + " from " + selected_peer['ipv4'])
+            # output(self.out_lck, "Downloading part " + str(n_part) + " from " + selected_peer['ipv4'])
 
             msg = "RETP" + md5 + str(n_part).zfill(8)
 
@@ -674,12 +658,9 @@ class Client(object):
                 download.send(msg)
                 self.print_trigger.emit('=> ' + str(download.getpeername()[0]) + '  ' + msg[0:4] + '  ' +
                                         md5 + '  ' + msg[36:], "00")
-
-                # Spazio
-                self.print_trigger.emit("", "00")
+                self.print_trigger.emit("", "00")  # Space
 
                 response_message = recvall(download, 4)
-                self.print_trigger.emit('<= ' + str(download.getpeername()[0]) + '  ' + response_message[0:4], '02')
 
             except socket.error, msg:
                 self.print_trigger.emit('Socket Error: ' + str(msg), '01')
@@ -690,18 +671,21 @@ class Client(object):
             else:
                 if response_message[:4] == 'AREP':
                     n_chunks = recvall(download, 6)  # Numero di parti del file da scaricare
-                    n_chunks = int(str(n_chunks).lstrip('0'))  # Rimozione gli 0 dal numero di parti e converte in intero
-                    data = ''
-                    for i in range(0, n_chunks):
-                        #if i == 0:
-                            #output(self.out_lck, 'Download started...')
-                            # self.print_trigger.emit('Download started...', '00')
 
+                    self.print_trigger.emit('<= ' + str(download.getpeername()[0]) + '  ' + response_message[0:4] +
+                                            '  ' + n_chunks, '02')
+                    self.print_trigger.emit("", "00")  # Space
+
+                    # Rimozione gli 0 dal numero di parti e converte in intero
+                    n_chunks = int(str(n_chunks).lstrip('0'))
+                    data = ''
+
+                    for i in range(0, n_chunks):
                         try:
                             chunk_length = recvall(download, 5)  # Ricezione dal peer la lunghezza della parte di file
                             data += recvall(download, int(chunk_length))  # Ricezione dal peer la parte del file
 
-                            #updating progress bar
+                            # Updating progress bar
                             progress = round(float(i) * 100 / float(n_chunks), 0)
                             self.download_trigger.emit(str(n_part), str(download.getpeername()[0]), progress)
 
@@ -717,8 +701,6 @@ class Client(object):
                             # output(self.out_lck, 'Error: ' + e.message)
                             self.print_trigger.emit('Error: ' + e.message, '01')
                             break
-
-                    #output(self.out_lck, '\nPart ' + str(n_part) + ' completed')
 
                     download.shutdown(1)
                     download.close()
@@ -758,12 +740,9 @@ class Client(object):
             self.tracker.sendall(msg)
             self.print_trigger.emit('=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' +
                                     self.session_id + '  ' + md5 + str(n_part), "00")
-
-            # Spazio
-            self.print_trigger.emit("", "00")
+            self.print_trigger.emit("", "00")  # Space
 
             response_message = recvall(self.tracker, 4)
-            self.print_trigger.emit('<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4], '02')
 
         except socket.error, msg:
             self.print_trigger.emit('Socket Error: ' + str(msg), '01')
@@ -775,8 +754,11 @@ class Client(object):
             output(self.out_lck, 'No response from tracker. Download failed')
             self.procedure_lck.release()
         elif response_message[0:4] == 'APAD':
-
-            num_part = int(recvall(self.tracker, 8))
+            num_part = recvall(self.tracker, 8)
+            self.print_trigger.emit('<= ' + str(self.tracker.getpeername()[0]) + '  ' + response_message[0:4] +
+                                    '  ' + num_part, '02')
+            self.print_trigger.emit("", "00")  # Space
+            num_part = int(num_part)
 
             output(self.out_lck, "Tracker successfully notified for part " + str(num_part))
             self.procedure_lck.release()

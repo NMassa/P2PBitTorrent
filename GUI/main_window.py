@@ -181,8 +181,9 @@ class Ui_MainWindow(QtGui.QMainWindow):
 
         if down_progress == 100:
             self.label.setText(_translate("MainWindow", "File " + file_name + " successfully downloaded.", None))
-            self.progressBar.setValue(down_progress)
         else:
             self.label.setText(_translate("MainWindow", "Downloading file " + file_name, None))
 
-            self.progressBar.setValue(down_progress)
+        self.progressBar = QtGui.QProgressBar(self.widget)
+        self.progressBar.setRange(0, 100)
+        self.progressBar.setProperty("value", down_progress)
