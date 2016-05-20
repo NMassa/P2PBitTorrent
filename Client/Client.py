@@ -584,6 +584,7 @@ class Client(object):
 
             download_idx = 0
             completed = self.dbConnect.downloading(md5)
+            self.download_progress_trigger.emit(0, file_name)
 
             # while threads < 5 or (len(parts) > download_idx):
             while not completed:
@@ -608,21 +609,26 @@ class Client(object):
 
                 # Ricomincio a scorrere la tabella dall'inizio perchè la fetch potrebbe cambiarne l'ordine
                 download_idx = 0
+
+                completed = self.dbConnect.downloading(md5)
+
         else:
             output(self.out_lck, 'Error: parts table not found.\n')
+
+        self.dbConnect.remove_download(md5)
 
         # Unisco i file
         list_parts = []
 
-        for root, dirs, files in os.walk("received/temp/"):
+        for root, dirs, files in os.walk("./received/temp/"):
             for f in files:
-                list_parts.append("received/temp/" + f)
+                list_parts.append("./received/temp/" + f)
 
-        join_parts(list_parts, "received/" + file_name)
+        join_parts(list_parts, "./received/" + file_name)
 
         self.download_progress_trigger.emit(100, file_name)
 
-        output(self.out_lck, "Donwload completed")
+        output(self.out_lck, "Download completed")
 
     def download(self, md5, n_part, file_name):
         # IPP2P:RND <> IPP2P:PP2P
@@ -717,7 +723,7 @@ class Client(object):
 
                     # Aggiorno la progress bar principale
                     n_parts, tot_parts = self.dbConnect.get_download_progress(md5)
-                    down_progress = int(n_parts / tot_parts)
+                    down_progress = int(n_parts / tot_parts * 100)
                     self.download_progress_trigger.emit(down_progress, file_name)
 
                     # Notifica al tracker del download avvenuto
@@ -727,9 +733,9 @@ class Client(object):
                     output(self.out_lck, 'Error: unknown response from peer.\n')
 
     def notify_tracker(self, md5, n_part):
-        #IPP2P:RND <> IPT:3000
-        #> “RPAD”[4B].SessionID[16B].Filemd5_i[32B].PartNum[8B]
-        #< “APAD”[4B].  # Part[8B]
+        # IPP2P:RND <> IPT:3000
+        # > “RPAD”[4B].SessionID[16B].Filemd5_i[32B].PartNum[8B]
+        # < “APAD”[4B].  # Part[8B]
 
         self.procedure_lck.acquire()
 
@@ -741,7 +747,7 @@ class Client(object):
 
             self.tracker.sendall(msg)
             self.print_trigger.emit('=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' +
-                                    self.session_id + '  ' + md5 + str(n_part), "00")
+                                    self.session_id + '  ' + md5 + '  ' + str(n_part), "00")
             self.print_trigger.emit("", "00")  # Space
 
             response_message = recvall(self.tracker, 4)
@@ -762,7 +768,7 @@ class Client(object):
             self.print_trigger.emit("", "00")  # Space
             num_part = int(num_part)
 
-            output(self.out_lck, "Tracker successfully notified for part " + str(num_part))
+            # output(self.out_lck, "Tracker successfully notified for part " + str(num_part))
             self.procedure_lck.release()
         else:
             output(self.out_lck, "Unknown response from tracker. Download failed")

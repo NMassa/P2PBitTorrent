@@ -186,4 +186,6 @@ class Ui_MainWindow(QtGui.QMainWindow):
 
         self.progressBar = QtGui.QProgressBar(self.widget)
         self.progressBar.setRange(0, 100)
-        self.progressBar.setProperty("value", down_progress)
+        self.progressBar.setValue(down_progress)
+
+        self.widget.render()

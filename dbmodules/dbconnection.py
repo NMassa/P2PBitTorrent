@@ -328,6 +328,23 @@ class MongoConnection():
     def insert_file(self, name, md5, len_file, len_part):
         self.db_lck.acquire()
         try:
+            file = self.db.files.find_one({"md5": md5})
+            if file is None:
+                self.db.files.insert_one({"name": name,
+                                            "md5": md5,
+                                            "len_file": len_file,
+                                            "len_part": len_part})
+            else:
+                self.db.files.update({"md5": md5}, {'$set': {"len_file": len_file, "len_part": len_part}})
+        except Exception as e:
+            output(self.out_lck, "Database Error > insert_file: " + e.message)
+            self.db_lck.release()
+        else:
+            self.db_lck.release()
+
+    def insert_file_tracker(self, name, md5, len_file, len_part):
+        self.db_lck.acquire()
+        try:
             file = self.db.tracker.find_one({"md5": md5})
             if file is None:
                 self.db.tracker.insert_one({"name": name,
@@ -337,7 +354,7 @@ class MongoConnection():
             else:
                 self.db.tracker.update({"md5": md5}, {'$set': {"len_file": len_file, "len_part": len_part}})
         except Exception as e:
-            output(self.out_lck, "Database Error > insert_file: " + e.message)
+            output(self.out_lck, "Database Error > insert_file_tracker: " + e.message)
             self.db_lck.release()
         else:
             self.db_lck.release()
@@ -366,6 +383,16 @@ class MongoConnection():
             })
         except Exception as e:
             output(self.out_lck, "Database Error > insert_download: " + e.message)
+            self.db_lck.release()
+        else:
+            self.db_lck.release()
+
+    def remove_download(self, md5):
+        self.db_lck.acquire()
+        try:
+            self.db.download.remove({"md5": md5})
+        except Exception as e:
+            output(self.out_lck, "Database Error > remove_download: " + e.message)
             self.db_lck.release()
         else:
             self.db_lck.release()
