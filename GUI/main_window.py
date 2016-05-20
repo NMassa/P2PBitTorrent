@@ -188,4 +188,4 @@ class Ui_MainWindow(QtGui.QMainWindow):
         self.progressBar.setRange(0, 100)
         self.progressBar.setValue(down_progress)
 
-        self.widget.render()
+        self.widget.repaint()

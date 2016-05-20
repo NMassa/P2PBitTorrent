@@ -51,9 +51,8 @@ class Peer_Server(threading.Thread):
                     file_md5 = cmd[4:36]
                     part_num = int(cmd[36:44])
 
-                    #self.print_trigger.emit("<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + file_md5 + "  " + str(part_num), "10")
-                    # Spazio
-                    #self.print_trigger.emit("", "00")
+                    self.print_trigger.emit("<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + file_md5 + "  " + str(part_num), "10")
+                    self.print_trigger.emit("", "00")  # Space
 
                     db_file = self.dbConnect.get_file(file_md5)
 
