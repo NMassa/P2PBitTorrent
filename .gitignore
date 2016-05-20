@@ -60,7 +60,12 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
-.config.py
-.idea
 
+.idea/
+
+ProvaZotti/
+
+/fileCondivisi/\[SubZero\] Mobile Suit Gundam Thunderbolt - 01 \[720p\]\[x264-AAC\]\[ITA\].mkv
 config.py
+
+.gitignore

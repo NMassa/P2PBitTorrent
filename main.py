@@ -120,6 +120,14 @@ class Main(QtCore.QThread):
                                             client.look()
                                         elif int_option == 3:
                                             client.logout()
+                                            while self.client.pool.tasks.qsize() > 0:
+                                                output(out_lck, 'Wait finish upload')
+                                                time.sleep(10)
+                                            output(out_lck, 'Wait 60 seconds to finish')
+                                            time.sleep(60)
+                                            multithread_server.stop()
+                                            output(out_lck, 'Logout completed')
+                                            exit()
                                         else:
                                             output(out_lck, "Option " + str(int_option) + " not available")
                         elif int_option == 2:

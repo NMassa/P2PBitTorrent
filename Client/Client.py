@@ -144,7 +144,9 @@ class Client(object):
             self.session_id = None
             # TODO: fare il check della connessione sulla socket dopo 60'
             self.tracker.close()  # Chiusura della connessione
-            output(self.out_lck, 'Logout completed, parts removed from the network: ' + str(n_parts))            
+            output(self.out_lck, 'Parts removed from the network: ' + str(n_parts))
+            #self.print_trigger.emit('Logout completed', '02')
+            output(self.out_lck, 'Logout completed, parts removed from the network: ' + str(n_parts))
             self.procedure_lck.release()
         elif response_message[0:4] == "NLOG":
             output(self.out_lck, 'Logout denied, parts already downloaded by other peers: ' + str(n_parts))

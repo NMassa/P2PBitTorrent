@@ -159,7 +159,7 @@ class Tracker_Server(threading.Thread):
                     self.print_trigger.emit(
                         "<= " + str(self.address[0]) + "  " + cmd[0:4] + "  " + session_id + "  " + term + "  ", "10")
 
-                    idmd5 = self.dbConnect.get_files(term)
+                    idmd5 = self.dbConnect.get_files_tracker(term)
                     idmd5_count = str(idmd5.count()).zfill(3)
 
                     msg = "ALOO" + idmd5_count
