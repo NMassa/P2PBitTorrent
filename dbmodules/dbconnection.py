@@ -215,6 +215,33 @@ class MongoConnection():
             except Exception as e:
                 output(self.out_lck, "Database Error > update_parts: " + e.message)
                 self.db_lck.release()
+        elif part is None:
+            try:
+
+                str_part = ""
+                #part_list = ""
+                session = self.db.sessions.find_one({"session_id": sessionID})
+                peer = self.db.tracker.find_one({'md5': md5})
+                LenFile = peer['len_file']
+                LenPart = peer['len_part']
+                n_parts = int(math.ceil(float(LenFile) / float(LenPart)))
+                for i in range(0, n_parts):
+                    if i == int(n_part):
+                        str_part = "".join([str_part, '1'])
+                    str_part = "".join([str_part, '0'])
+                #str_part[int(n_part)] = '1'
+                #part_list = "".join(str_part)
+
+
+                self.db.tracker.update({"md5": md5},
+                                       {'$push': {'peers': {'port': session['port'], 'part_list': str_part,
+                                                            'ipv4': session['ipv4'], 'session_id': sessionID,
+                                                            'ipv6': session['ipv6']}}})
+                # db.getCollection('hitpeers').update({'md5': 'md51'}, {'$push': {'ipv4': {'a': "aaaaa2", 'b': "bbbbbbb2"}}})
+                self.db_lck.release()
+            except Exception as e:
+                output(self.out_lck, "Database Error > update_parts: " + e.message)
+                self.db_lck.release()
         else:
             output(self.out_lck, "Database Error > update_parts: file " + md5 + " or user " + sessionID + " not found")
             self.db_lck.release()
@@ -286,7 +313,7 @@ class MongoConnection():
     def get_file_tracker(self, md5):
         self.db_lck.acquire()
         try:
-            file = self.db.files.find_one({"md5": md5})
+            file = self.db.tracker.find_one({"md5": md5})
         except Exception as e:
             output(self.out_lck, "Database Error > get_file: " + e.message)
             self.db_lck.release()
@@ -325,7 +352,7 @@ class MongoConnection():
             self.db_lck.release()
             return file
 
-    def insert_file(self, name, md5, len_file, len_part):
+    def insert_file_tracker(self, name, md5, len_file, len_part):
         self.db_lck.acquire()
         try:
             file = self.db.files.find_one({"md5": md5})
@@ -355,6 +382,23 @@ class MongoConnection():
                 self.db.tracker.update({"md5": md5}, {'$set': {"len_file": len_file, "len_part": len_part}})
         except Exception as e:
             output(self.out_lck, "Database Error > insert_file_tracker: " + e.message)
+            self.db_lck.release()
+        else:
+            self.db_lck.release()
+
+    def insert_file_tracker(self, name, md5, len_file, len_part):
+        self.db_lck.acquire()
+        try:
+            file = self.db.files.find_one({"md5": md5})
+            if file is None:
+                self.db.files.insert_one({"name": name,
+                                          "md5": md5,
+                                          "len_file": len_file,
+                                          "len_part": len_part})
+            else:
+                self.db.files.update({"md5": md5}, {'$set': {"len_file": len_file, "len_part": len_part}})
+        except Exception as e:
+            output(self.out_lck, "Database Error > insert_file: " + e.message)
             self.db_lck.release()
         else:
             self.db_lck.release()

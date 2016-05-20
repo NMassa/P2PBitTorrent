@@ -145,9 +145,16 @@ class Client(object):
             # TODO: fare il check della connessione sulla socket dopo 60'
             self.tracker.close()  # Chiusura della connessione
             output(self.out_lck, 'Parts removed from the network: ' + str(n_parts))
+            while self.pool.tasks.qsize() > 0:
+                output(self.out_lck, 'Wait finish upload')
+                time.sleep(10)
+            output(self.out_lck, 'Wait 60 seconds to finish')
+            time.sleep(60)
             #self.print_trigger.emit('Logout completed', '02')
             output(self.out_lck, 'Logout completed, parts removed from the network: ' + str(n_parts))
             self.procedure_lck.release()
+            #multithread_server.stop()
+            exit()
         elif response_message[0:4] == "NLOG":
             output(self.out_lck, 'Logout denied, parts already downloaded by other peers: ' + str(n_parts))
             self.procedure_lck.release()
