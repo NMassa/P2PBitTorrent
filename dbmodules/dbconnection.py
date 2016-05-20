@@ -352,7 +352,7 @@ class MongoConnection():
             self.db_lck.release()
             return file
 
-    def insert_file_tracker(self, name, md5, len_file, len_part):
+    def insert_file(self, name, md5, len_file, len_part):
         self.db_lck.acquire()
         try:
             file = self.db.files.find_one({"md5": md5})
@@ -382,23 +382,6 @@ class MongoConnection():
                 self.db.tracker.update({"md5": md5}, {'$set': {"len_file": len_file, "len_part": len_part}})
         except Exception as e:
             output(self.out_lck, "Database Error > insert_file_tracker: " + e.message)
-            self.db_lck.release()
-        else:
-            self.db_lck.release()
-
-    def insert_file_tracker(self, name, md5, len_file, len_part):
-        self.db_lck.acquire()
-        try:
-            file = self.db.files.find_one({"md5": md5})
-            if file is None:
-                self.db.files.insert_one({"name": name,
-                                          "md5": md5,
-                                          "len_file": len_file,
-                                          "len_part": len_part})
-            else:
-                self.db.files.update({"md5": md5}, {'$set': {"len_file": len_file, "len_part": len_part}})
-        except Exception as e:
-            output(self.out_lck, "Database Error > insert_file: " + e.message)
             self.db_lck.release()
         else:
             self.db_lck.release()
