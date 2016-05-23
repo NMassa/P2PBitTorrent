@@ -3,11 +3,11 @@ import time
 import math, time
 from SharedFile import SharedFile
 from helpers import connection
+from helpers.scheduler import Scheduler
 from helpers.helpers import *
 import threading, json, collections
 from multiprocessing import Pool
 from DownloadingThreadPool import ThreadPool
-
 
 class Client(object):
 
@@ -38,7 +38,7 @@ class Client(object):
         self.print_trigger = print_trigger
         self.download_trigger = download_trigger
         self.download_progress_trigger = download_progress_trigger
-        self.fetch_thread = None
+        self.fetch_scheduler = None
         self.fetching = False
 
         # Searching for shareable files
@@ -381,9 +381,11 @@ class Client(object):
                             self.procedure_lck.release()
 
                             # Avvio un thread che esegue la fetch ogni 60(10) sec
-                            self.fetch_thread = threading.Timer(10, self.fetch, [file_to_download])
-                            self.fetch_thread.start()
+                            # self.fetch_scheduler = threading.Timer(10, self.fetch, [file_to_download])
+                            # self.fetch_scheduler.start()
                             # self.fetch(file_to_download)
+                            self.fetch_scheduler = Scheduler(10, self.fetch, [file_to_download])  # Auto start
+                            self.fetching = True
 
                             output(self.out_lck, "\nStart download file?: ")
                             output(self.out_lck, "1: Yes")
