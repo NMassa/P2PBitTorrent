@@ -228,7 +228,8 @@ class MongoConnection():
                 for i in range(0, n_parts):
                     if i == int(n_part):
                         str_part = "".join([str_part, '1'])
-                    str_part = "".join([str_part, '0'])
+                    else:
+                        str_part = "".join([str_part, '0'])
                 #str_part[int(n_part)] = '1'
                 #part_list = "".join(str_part)
 
