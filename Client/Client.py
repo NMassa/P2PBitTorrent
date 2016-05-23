@@ -383,9 +383,16 @@ class Client(object):
                             # Avvio un thread che esegue la fetch ogni 60(10) sec
                             # self.fetch_scheduler = threading.Timer(10, self.fetch, [file_to_download])
                             # self.fetch_scheduler.start()
-                            # self.fetch(file_to_download)
+
+                            # La prima fetch deve partire subito
+                            self.fetch(file_to_download)
+
+                            # Poi ogni 60(10) sec
                             self.fetch_scheduler = Scheduler(10, self.fetch, [file_to_download])  # Auto start
-                            self.fetching = True
+
+                            # Aspetto che la prima fetch abbia terminato
+                            while self.fetching:
+                                time.sleep(1)
 
                             output(self.out_lck, "\nStart download file?: ")
                             output(self.out_lck, "1: Yes")
