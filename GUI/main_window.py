@@ -7,6 +7,7 @@
 # WARNING! All changes made in this file will be lost!
 
 from PyQt4 import QtCore, QtGui
+#from PyQt4.QtGui import QApplication
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -178,14 +179,12 @@ class Ui_MainWindow(QtGui.QMainWindow):
             self.tableWidget.setCellWidget(row, 2, progressbar)
 
     def download_progress(self, down_progress, file_name):
-
         if down_progress == 100:
-            self.label.setText(_translate("MainWindow", "File " + file_name + " successfully downloaded.", None))
+            self.download_label.setText(_translate("MainWindow", "File " + file_name + " successfully downloaded.", None))
         else:
-            self.label.setText(_translate("MainWindow", "Downloading file " + file_name, None))
+            self.download_label.setText(_translate("MainWindow", "Downloading file " + file_name, None))
 
-        self.progressBar = QtGui.QProgressBar(self.widget)
-        self.progressBar.setRange(0, 100)
         self.progressBar.setValue(down_progress)
 
-        self.widget.repaint()
+        #QApplication.processEvents()
+        # self.widget.repaint()

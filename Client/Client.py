@@ -381,7 +381,7 @@ class Client(object):
                             self.procedure_lck.release()
 
                             # Avvio un thread che esegue la fetch ogni 60(10) sec
-                            self.fetch_thread = threading.Timer(10, self.fetch(file_to_download))
+                            self.fetch_thread = threading.Timer(10, self.fetch, [file_to_download])
                             self.fetch_thread.start()
                             # self.fetch(file_to_download)
 
