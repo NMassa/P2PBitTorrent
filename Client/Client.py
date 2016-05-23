@@ -388,7 +388,7 @@ class Client(object):
                             self.fetch(file_to_download)
 
                             # Poi ogni 60(10) sec
-                            self.fetch_scheduler = Scheduler(10, self.fetch, [file_to_download])  # Auto start
+                            self.fetch_scheduler = Scheduler(10, self.fetch, file_to_download)  # Auto start
 
                             # Aspetto che la prima fetch abbia terminato
                             while self.fetching:
