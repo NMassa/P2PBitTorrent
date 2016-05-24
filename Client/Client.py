@@ -398,6 +398,7 @@ class Client(object):
                             output(self.out_lck, "1: Yes")
                             output(self.out_lck, "2: No")
 
+
                             start_download = None
                             while start_download is None:
                                 try:
@@ -602,7 +603,7 @@ class Client(object):
 
             # while threads < 5 or (len(parts) > download_idx):
             while not completed:
-                while self.pool.tasks.qsize() < self.parallel_downloads:
+                while self.pool.tasks.qsize() < self.parallel_downloads and not completed:
                     if download_idx < len(parts):
                         if not parts[download_idx]['downloaded'] or parts[download_idx]['downloaded'] == "false":
                             part_n = parts[download_idx]['n']
@@ -613,7 +614,8 @@ class Client(object):
                             download_idx += 1
                         else:
                             download_idx += 1
-
+                    else:
+                        download_idx = 0
                 # 3) Aspetto il completamento dei task
                 self.pool.wait_completion()
 
@@ -626,26 +628,26 @@ class Client(object):
 
                 completed = self.dbConnect.downloading(md5)
 
+            self.fetch_scheduler.stop()
+
+            self.dbConnect.remove_download(md5)
+
+            # Unisco i file
+            list_parts = []
+
+            for root, dirs, files in os.walk("./received/temp/"):
+                for f in files:
+                    list_parts.append("./received/temp/" + f)
+
+            output(self.out_lck, "Joining parts")
+            join_parts_mac(list_parts, "./received/" + file_name)
+
+            self.download_progress_trigger.emit(100, file_name)
+
+            output(self.out_lck, "Download completed")
+
         else:
             output(self.out_lck, 'Error: parts table not found.\n')
-
-        self.fetch_scheduler.stop()
-
-        self.dbConnect.remove_download(md5)
-
-        # Unisco i file
-        list_parts = []
-
-        for root, dirs, files in os.walk("./received/temp/"):
-            for f in files:
-                list_parts.append("./received/temp/" + f)
-
-        output(self.out_lck, "Joining parts")
-        join_parts_mac(list_parts, "./received/" + file_name)
-
-        self.download_progress_trigger.emit(100, file_name)
-
-        output(self.out_lck, "Download completed")
 
     def download(self, md5, n_part, file_name):
         # IPP2P:RND <> IPP2P:PP2P
@@ -661,13 +663,16 @@ class Client(object):
         while download is None:  # provo a connettermi ad uno dei peer finchè non ne trovo uno online
             selected_peer = random.choice(list(part['peers']))
 
-            try:
-                c = connection.Connection(selected_peer['ipv4'], selected_peer['ipv6'], selected_peer['port'], self.print_trigger,
-                                          "0")  # Inizializzazione della connessione verso il peer
-                c.connect()
-                download = c.socket
+            if not selected_peer['ipv4'] == self.my_ipv4 or not selected_peer['ipv6'] == self.my_ipv6:
+                try:
+                    c = connection.Connection(selected_peer['ipv4'], selected_peer['ipv6'], selected_peer['port'], self.print_trigger,
+                                              "0")  # Inizializzazione della connessione verso il peer
+                    c.connect()
+                    download = c.socket
 
-            except socket.error, msg:
+                except socket.error, msg:
+                    download = None
+            else:
                 download = None
 
         if download is None:
@@ -740,7 +745,7 @@ class Client(object):
 
                     # Aggiorno la progress bar principale
                     n_parts, tot_parts = self.dbConnect.get_download_progress(md5)
-                    down_progress = int(n_parts / tot_parts * 100)
+                    down_progress = int(n_parts * 100 / tot_parts)
                     self.download_progress_trigger.emit(down_progress, file_name)
 
                     # Notifica al tracker del download avvenuto
@@ -766,7 +771,7 @@ class Client(object):
             self.print_trigger.emit('=> ' + str(self.tracker.getpeername()[0]) + '  ' + msg[0:4] + '  ' +
                                     self.session_id + '  ' + md5 + '  ' + str(n_part), "00")
             self.print_trigger.emit("", "00")  # Space
-
+            # output(self.out_lck, msg)
             response_message = recvall(self.tracker, 4)
 
         except socket.error, msg:
@@ -784,7 +789,7 @@ class Client(object):
                                     '  ' + num_part, '02')
             self.print_trigger.emit("", "00")  # Space
             num_part = int(num_part)
-
+            #output(self.out_lck, response_message[0:4])
             # output(self.out_lck, "Tracker successfully notified for part " + str(num_part))
             self.procedure_lck.release()
         else:

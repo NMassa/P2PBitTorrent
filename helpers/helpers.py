@@ -145,6 +145,7 @@ def join_parts(infiles, outfile, buffer=1024):
                         break
             os.remove(infile)
 
+
 def join_parts_mac(infiles, outfile, buffer=1024):
     """
     infiles: a list of files
@@ -152,7 +153,7 @@ def join_parts_mac(infiles, outfile, buffer=1024):
     buffer: buffer size in bytes
     """
     output = open(outfile, 'w+b')
-    data = None
+    data = ""
     for infile in sorted(infiles):
         with open(infile, 'r+b') as src:
             while True:
