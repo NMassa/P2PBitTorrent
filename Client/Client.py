@@ -388,7 +388,7 @@ class Client(object):
                             self.fetch(file_to_download)
 
                             # Poi ogni 60(10) sec
-                            self.fetch_scheduler = Scheduler(10, self.fetch, file_to_download)  # Auto start
+                            self.fetch_scheduler = Scheduler(60, self.fetch, file_to_download)  # Auto start
 
                             # Aspetto che la prima fetch abbia terminato
                             while self.fetching:
@@ -629,6 +629,8 @@ class Client(object):
         else:
             output(self.out_lck, 'Error: parts table not found.\n')
 
+        self.fetch_scheduler.stop()
+
         self.dbConnect.remove_download(md5)
 
         # Unisco i file
@@ -638,6 +640,7 @@ class Client(object):
             for f in files:
                 list_parts.append("./received/temp/" + f)
 
+        output(self.out_lck, "Joining parts")
         join_parts(list_parts, "./received/" + file_name)
 
         self.download_progress_trigger.emit(100, file_name)
