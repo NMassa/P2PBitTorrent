@@ -144,3 +144,24 @@ def join_parts(infiles, outfile, buffer=1024):
                     else:
                         break
             os.remove(infile)
+
+def join_parts_mac(infiles, outfile, buffer=1024):
+    """
+    infiles: a list of files
+    outfile: the file that will be created
+    buffer: buffer size in bytes
+    """
+    output = open(outfile, 'w+b')
+    data = None
+    for infile in sorted(infiles):
+        with open(infile, 'r+b') as src:
+            while True:
+                read = src.read(buffer)
+                if read:
+                    data += read
+                else:
+                    break
+        os.remove(infile)
+
+    output.write(data)
+    output.close()

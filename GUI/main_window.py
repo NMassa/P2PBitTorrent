@@ -184,7 +184,7 @@ class Ui_MainWindow(QtGui.QMainWindow):
         else:
             self.download_label.setText(_translate("MainWindow", "Downloading file " + file_name, None))
 
-        self.progressBar.setValue(down_progress)
+        self.progressBar.setValue(down_progress * 100)
 
         #QApplication.processEvents()
         # self.widget.repaint()
